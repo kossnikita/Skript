@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +46,8 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 
+import ch.njol.skript.structures.PreloadingStructure;
+import ch.njol.skript.structures.Structure;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
 import org.eclipse.jdt.annotation.Nullable;
@@ -524,7 +527,7 @@ public class ScriptLoader {
 		
 		boolean wasLocal = Language.setUseLocal(false);
 		
-		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
+		callPreScriptLoadEvent(configs);
 		
 		ScriptInfo scriptInfo = new ScriptInfo();
 		
@@ -570,7 +573,29 @@ public class ScriptLoader {
 				return scriptInfo;
 			});
 	}
-	
+
+	@SuppressWarnings("ConstantConditions")
+	private static void callPreScriptLoadEvent(List<Config> configs) {
+		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
+
+		// Preloading structure parsing
+		for (Config config : configs) {
+			for (Node node : config.getMainNode()) {
+				if (!(node instanceof SectionNode))
+					continue;
+				SectionNode sectionNode = (SectionNode) node;
+				String key = sectionNode.getKey();
+				if (key == null)
+					continue;
+
+				PreloadingStructure preloadingStructure = PreloadingStructure.parse(key, sectionNode);
+				if (preloadingStructure != null) {
+					preloadedStructures.put(sectionNode, preloadingStructure);
+				}
+			}
+		}
+	}
+
 	/**
 	 * Represents data for event which is waiting to be loaded.
 	 */
@@ -590,7 +615,9 @@ public class ScriptLoader {
 			this.items = items;
 		}
 	}
-	
+
+	private static final WeakHashMap<SectionNode, PreloadingStructure> preloadedStructures = new WeakHashMap<>();
+
 	/**
 	 * Loads one script. Only for internal use, as this doesn't register/update
 	 * event handlers.
@@ -629,7 +656,18 @@ public class ScriptLoader {
 					String event = node.getKey();
 					if (event == null)
 						continue;
-					
+
+					Structure structure = preloadedStructures.get(node);
+					if (structure != null) {
+						PreloadingStructure preloadingStructure = (PreloadingStructure) structure;
+						preloadingStructure.init();
+						continue;
+					} else {
+						structure = Structure.parse(event, node);
+						if (structure != null)
+							continue;
+					}
+
 					if (event.equalsIgnoreCase("aliases")) {
 						node.convertToEntries(0, "=");
 						

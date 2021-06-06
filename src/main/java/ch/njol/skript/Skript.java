@@ -18,58 +18,6 @@
  */
 package ch.njol.skript;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.logging.Filter;
-import java.util.logging.Level;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
-
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.server.ServerCommandEvent;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginDescriptionFile;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.eclipse.jdt.annotation.Nullable;
-
-import com.google.gson.Gson;
 import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.bukkitutil.BukkitUnsafe;
 import ch.njol.skript.bukkitutil.BurgerHelper;
@@ -115,6 +63,8 @@ import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.registrations.Comparators;
 import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.registrations.EventValues;
+import ch.njol.skript.structures.PreloadingStructure;
+import ch.njol.skript.structures.Structure;
 import ch.njol.skript.tests.runner.SkriptTestEvent;
 import ch.njol.skript.tests.runner.TestMode;
 import ch.njol.skript.tests.runner.TestTracker;
@@ -140,6 +90,57 @@ import ch.njol.util.StringUtils;
 import ch.njol.util.coll.CollectionUtils;
 import ch.njol.util.coll.iterator.CheckedIterator;
 import ch.njol.util.coll.iterator.EnumerationIterable;
+import com.google.gson.Gson;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginDescriptionFile;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.eclipse.jdt.annotation.Nullable;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.logging.Filter;
+import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 // TODO meaningful error if someone uses an %expression with percent signs% outside of text or a variable
 
@@ -433,7 +434,8 @@ public final class Skript extends JavaPlugin implements Listener {
 		ChatMessages.registerListeners();
 		
 		try {
-			getAddonInstance().loadClasses("ch.njol.skript", "conditions", "effects", "events", "expressions", "entity");
+			getAddonInstance().loadClasses("ch.njol.skript",
+				"conditions", "effects", "events", "expressions", "entity", "structures");
 		} catch (final Exception e) {
 			exception(e, "Could not load required .class files: " + e.getLocalizedMessage());
 			setEnabled(false);
@@ -1187,9 +1189,9 @@ public final class Skript extends JavaPlugin implements Listener {
 	
 	// ================ CONDITIONS & EFFECTS ================
 	
-	private final static Collection<SyntaxElementInfo<? extends Condition>> conditions = new ArrayList<>(50);
-	private final static Collection<SyntaxElementInfo<? extends Effect>> effects = new ArrayList<>(50);
-	private final static Collection<SyntaxElementInfo<? extends Statement>> statements = new ArrayList<>(100);
+	private static final List<SyntaxElementInfo<? extends Condition>> conditions = new ArrayList<>(50);
+	private static final List<SyntaxElementInfo<? extends Effect>> effects = new ArrayList<>(50);
+	private static final List<SyntaxElementInfo<? extends Statement>> statements = new ArrayList<>(100);
 	
 	/**
 	 * registers a {@link Condition}.
@@ -1219,15 +1221,15 @@ public final class Skript extends JavaPlugin implements Listener {
 		statements.add(info);
 	}
 	
-	public static Collection<SyntaxElementInfo<? extends Statement>> getStatements() {
+	public static List<SyntaxElementInfo<? extends Statement>> getStatements() {
 		return statements;
 	}
 	
-	public static Collection<SyntaxElementInfo<? extends Condition>> getConditions() {
+	public static List<SyntaxElementInfo<? extends Condition>> getConditions() {
 		return conditions;
 	}
 	
-	public static Collection<SyntaxElementInfo<? extends Effect>> getEffects() {
+	public static List<SyntaxElementInfo<? extends Effect>> getEffects() {
 		return effects;
 	}
 	
@@ -1281,7 +1283,10 @@ public final class Skript extends JavaPlugin implements Listener {
 	
 	// ================ EVENTS ================
 	
-	private final static Collection<SkriptEventInfo<?>> events = new ArrayList<>(50);
+	private static final List<SkriptEventInfo<?>> events = new ArrayList<>(50);
+
+	private static final List<SyntaxElementInfo<? extends Structure>> normalStructures = new ArrayList<>(10);
+	private static final List<SyntaxElementInfo<? extends PreloadingStructure>> preloadingStructures = new ArrayList<>(10);
 	
 	/**
 	 * Registers an event.
@@ -1293,11 +1298,10 @@ public final class Skript extends JavaPlugin implements Listener {
 	 * @param patterns Skript patterns to match this event
 	 * @return A SkriptEventInfo representing the registered event. Used to generate Skript's documentation.
 	 */
-	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(final String name, final Class<E> c, final Class<? extends Event> event, final String... patterns) {
+	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(String name, Class<E> c, Class<? extends Event> event, String... patterns) {
 		checkAcceptRegistrations();
 		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
-		assert originClassPath != null;
-		final SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, CollectionUtils.array(event));
+		SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, CollectionUtils.array(event));
 		events.add(r);
 		return r;
 	}
@@ -1311,17 +1315,35 @@ public final class Skript extends JavaPlugin implements Listener {
 	 * @param patterns Skript patterns to match this event
 	 * @return A SkriptEventInfo representing the registered event. Used to generate Skript's documentation.
 	 */
-	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(final String name, final Class<E> c, final Class<? extends Event>[] events, final String... patterns) {
+	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(String name, Class<E> c, Class<? extends Event>[] events, String... patterns) {
 		checkAcceptRegistrations();
 		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
-		assert originClassPath != null;
-		final SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, events);
+		SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, events);
 		Skript.events.add(r);
 		return r;
 	}
-	
-	public static Collection<SkriptEventInfo<?>> getEvents() {
+
+	@SuppressWarnings("unchecked")
+	public static <E extends Structure> void registerStructure(Class<E> c, String... patterns) {
+		checkAcceptRegistrations();
+		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
+		SyntaxElementInfo<E> structureInfo = new SyntaxElementInfo<>(patterns, c, originClassPath);
+		if (PreloadingStructure.class.isAssignableFrom(c))
+			preloadingStructures.add((SyntaxElementInfo<? extends PreloadingStructure>) structureInfo);
+		else
+			normalStructures.add(structureInfo);
+	}
+
+	public static List<SkriptEventInfo<?>> getEvents() {
 		return events;
+	}
+
+	public static List<SyntaxElementInfo<? extends Structure>> getNormalStructures() {
+		return normalStructures;
+	}
+
+	public static List<SyntaxElementInfo<? extends PreloadingStructure>> getPreloadingStructures() {
+		return preloadingStructures;
 	}
 	
 	// ================ COMMANDS ================
