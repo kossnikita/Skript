@@ -1190,9 +1190,9 @@ public final class Skript extends JavaPlugin implements Listener {
 	// ================ CONDITIONS & EFFECTS ================
 
 	// TODO maybe revert these changes
-	private static final List<SyntaxElementInfo<? extends Condition>> conditions = new ArrayList<>(50);
-	private static final List<SyntaxElementInfo<? extends Effect>> effects = new ArrayList<>(50);
-	private static final List<SyntaxElementInfo<? extends Statement>> statements = new ArrayList<>(100);
+	private static final Collection<SyntaxElementInfo<? extends Condition>> conditions = new ArrayList<>(50);
+	private static final Collection<SyntaxElementInfo<? extends Effect>> effects = new ArrayList<>(50);
+	private static final Collection<SyntaxElementInfo<? extends Statement>> statements = new ArrayList<>(100);
 	
 	/**
 	 * registers a {@link Condition}.
@@ -1222,15 +1222,15 @@ public final class Skript extends JavaPlugin implements Listener {
 		statements.add(info);
 	}
 	
-	public static List<SyntaxElementInfo<? extends Statement>> getStatements() {
+	public static Collection<SyntaxElementInfo<? extends Statement>> getStatements() {
 		return statements;
 	}
 	
-	public static List<SyntaxElementInfo<? extends Condition>> getConditions() {
+	public static Collection<SyntaxElementInfo<? extends Condition>> getConditions() {
 		return conditions;
 	}
 	
-	public static List<SyntaxElementInfo<? extends Effect>> getEffects() {
+	public static Collection<SyntaxElementInfo<? extends Effect>> getEffects() {
 		return effects;
 	}
 	
@@ -1284,7 +1284,7 @@ public final class Skript extends JavaPlugin implements Listener {
 	
 	// ================ EVENTS ================
 	
-	private static final List<SkriptEventInfo<?>> events = new ArrayList<>(50);
+	private static final Collection<SkriptEventInfo<?>> events = new ArrayList<>(50);
 
 	private static final List<SyntaxElementInfo<? extends Structure>> normalStructures = new ArrayList<>(10);
 	private static final List<SyntaxElementInfo<? extends PreloadingStructure>> preloadingStructures = new ArrayList<>(10);
@@ -1335,7 +1335,7 @@ public final class Skript extends JavaPlugin implements Listener {
 			normalStructures.add(structureInfo);
 	}
 
-	public static List<SkriptEventInfo<?>> getEvents() {
+	public static Collection<SkriptEventInfo<?>> getEvents() {
 		return events;
 	}
 
