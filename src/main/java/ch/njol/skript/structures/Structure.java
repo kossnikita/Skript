@@ -31,6 +31,31 @@ import ch.njol.skript.log.SkriptLogger;
 import ch.njol.util.Kleenean;
 import org.eclipse.jdt.annotation.Nullable;
 
+/**
+ * A {@link Structure} should be used instead of an event, in the following scenarios:
+ * <ul>
+ *     <li>
+ *         The {@link SectionNode} does not just contain code
+ *         <ul>
+ *             <li>
+ *                 For example, custom commands can contain other things, such as a permission or cooldown message.
+ *                 Options are also applicable here, since they don't contain code at all.
+ *             </li>
+ *         </ul>
+ *     </li>
+ *     <li>
+ *         The section should be (partially) read before <i>any</i> other code is loaded.
+ *         In this case, a {@link PreloadingStructure} should be used.
+ *         <ul>
+ *             <li>
+ *                 Functions use this to make sure they can be called from even before their definition in the script file.
+ *             </li>
+ *         </ul>
+ *     </li>
+ * </ul>
+ *
+ * @see Skript#registerStructure(Class, String...)
+ */
 public abstract class Structure implements SyntaxElement, Debuggable {
 
 	@Override
@@ -39,6 +64,10 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 		return init(exprs, matchedPattern, isDelayed, parseResult, structureNode.sectionNode);
 	}
 
+	/**
+	 * This method is the same as {@link SyntaxElement#init(Expression[], int, Kleenean, ParseResult)}, except
+	 * the structure's {@link SectionNode} is also passed to this method.
+	 */
 	public abstract boolean init(Expression<?>[] exprs,
 								 int matchedPattern,
 								 Kleenean isDelayed,
