@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import ch.njol.skript.ScriptLoader.ScriptInfo;
+import ch.njol.skript.structures.Structure;
 import org.bukkit.event.Event;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -59,7 +61,9 @@ public class ParserInstance {
 	@Nullable
 	private Config currentScript;
 	private final HashMap<String, String> currentOptions = new HashMap<>();
-	
+	private ScriptInfo scriptInfo;
+	private final List<Structure> loadedStructures = new ArrayList<>();
+
 	// Event
 	@Nullable
 	private String currentEventName;
@@ -97,7 +101,15 @@ public class ParserInstance {
 	public HashMap<String, String> getCurrentOptions() {
 		return currentOptions;
 	}
-	
+
+	public ScriptInfo getScriptInfo() {
+		return scriptInfo;
+	}
+
+	public List<Structure> getLoadedStructures() {
+		return loadedStructures;
+	}
+
 	@Nullable
 	public String getCurrentEventName() {
 		return currentEventName;
@@ -145,7 +157,11 @@ public class ParserInstance {
 		this.currentScript = currentScript;
 		getDataInstances().forEach(data -> data.onCurrentScriptChange(currentScript));
 	}
-	
+
+	public void setScriptInfo(ScriptInfo scriptInfo) {
+		this.scriptInfo = scriptInfo;
+	}
+
 	public void setCurrentEventName(@Nullable String currentEventName) {
 		this.currentEventName = currentEventName;
 	}

@@ -574,18 +574,25 @@ public class ScriptLoader {
 			});
 	}
 
+	private static final WeakHashMap<SectionNode, PreloadingStructure> preloadedStructures = new WeakHashMap<>();
+
 	@SuppressWarnings("ConstantConditions")
 	private static void callPreScriptLoadEvent(List<Config> configs) {
 		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
 
 		// Preloading structure parsing
 		for (Config config : configs) {
+			getParser().setCurrentScript(config);
 			for (Node node : config.getMainNode()) {
 				if (!(node instanceof SectionNode))
 					continue;
+
 				SectionNode sectionNode = (SectionNode) node;
 				String key = sectionNode.getKey();
 				if (key == null)
+					continue;
+
+				if (!SkriptParser.validateLine(key))
 					continue;
 
 				PreloadingStructure preloadingStructure = PreloadingStructure.parse(key, sectionNode);
@@ -593,6 +600,7 @@ public class ScriptLoader {
 					preloadedStructures.put(sectionNode, preloadingStructure);
 				}
 			}
+			getParser().setCurrentScript(null);
 		}
 	}
 
@@ -616,8 +624,6 @@ public class ScriptLoader {
 		}
 	}
 
-	private static final WeakHashMap<SectionNode, PreloadingStructure> preloadedStructures = new WeakHashMap<>();
-
 	/**
 	 * Loads one script. Only for internal use, as this doesn't register/update
 	 * event handlers.
@@ -631,11 +637,11 @@ public class ScriptLoader {
 		}
 		
 		// When something is parsed, it goes there to be loaded later
-		List<ScriptCommand> commands = new ArrayList<>();
 		List<ParsedEventData> events = new ArrayList<>();
 		
 		// Track what is loaded
 		ScriptInfo scriptInfo = new ScriptInfo();
+		getParser().setScriptInfo(scriptInfo);
 		scriptInfo.files = 1; // Loading one script
 		
 		try {
@@ -657,131 +663,22 @@ public class ScriptLoader {
 					if (event == null)
 						continue;
 
+					if (!SkriptParser.validateLine(event))
+						continue;
+
 					Structure structure = preloadedStructures.get(node);
 					if (structure != null) {
 						PreloadingStructure preloadingStructure = (PreloadingStructure) structure;
-						preloadingStructure.init();
-						continue;
+						preloadingStructure.init(node);
 					} else {
 						structure = Structure.parse(event, node);
-						if (structure != null)
-							continue;
 					}
 
-					if (event.equalsIgnoreCase("aliases")) {
-						node.convertToEntries(0, "=");
-						
-						// Initialize and load script aliases
-						ScriptAliases aliases = Aliases.createScriptAliases();
-						Aliases.setScriptAliases(aliases);
-						aliases.parser.load(node);
-						continue;
-					} else if (event.equalsIgnoreCase("options")) {
-						node.convertToEntries(0);
-						for (Node n : node) {
-							if (!(n instanceof EntryNode)) {
-								Skript.error("invalid line in options");
-								continue;
-							}
-							getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
-						}
-						continue;
-					} else if (event.equalsIgnoreCase("variables")) {
-						// TODO allow to make these override existing variables
-						node.convertToEntries(0, "=");
-						for (Node n : node) {
-							if (!(n instanceof EntryNode)) {
-								Skript.error("Invalid line in variables section");
-								continue;
-							}
-							String name = n.getKey().toLowerCase(Locale.ENGLISH);
-							if (name.startsWith("{") && name.endsWith("}"))
-								name = "" + name.substring(1, name.length() - 1);
-							String var = name;
-							name = StringUtils.replaceAll(name, "%(.+)?%", m -> {
-								if (m.group(1).contains("{") || m.group(1).contains("}") || m.group(1).contains("%")) {
-									Skript.error("'" + var + "' is not a valid name for a default variable");
-									return null;
-								}
-								ClassInfo<?> ci = Classes.getClassInfoFromUserInput("" + m.group(1));
-								if (ci == null) {
-									Skript.error("Can't understand the type '" + m.group(1) + "'");
-									return null;
-								}
-								return "<" + ci.getCodeName() + ">";
-							});
-							if (name == null) {
-								continue;
-							} else if (name.contains("%")) {
-								Skript.error("Invalid use of percent signs in variable name");
-								continue;
-							}
-							if (Variables.getVariable(name, null, false) != null)
-								continue;
-							Object o;
-							ParseLogHandler log = SkriptLogger.startParseLogHandler();
-							try {
-								o = Classes.parseSimple(((EntryNode) n).getValue(), Object.class, ParseContext.SCRIPT);
-								if (o == null) {
-									log.printError("Can't understand the value '" + ((EntryNode) n).getValue() + "'");
-									continue;
-								}
-								log.printLog();
-							} finally {
-								log.stop();
-							}
-							ClassInfo<?> ci = Classes.getSuperClassInfo(o.getClass());
-							if (ci.getSerializer() == null) {
-								Skript.error("Can't save '" + ((EntryNode) n).getValue() + "' in a variable");
-								continue;
-							} else if (ci.getSerializeAs() != null) {
-								ClassInfo<?> as = Classes.getExactClassInfo(ci.getSerializeAs());
-								if (as == null) {
-									assert false : ci;
-									continue;
-								}
-								o = Converters.convert(o, as.getC());
-								if (o == null) {
-									Skript.error("Can't save '" + ((EntryNode) n).getValue() + "' in a variable");
-									continue;
-								}
-							}
-							Variables.setVariable(name, o, null, false);
-						}
+					if (structure != null) {
+						getParser().getLoadedStructures().add(structure);
 						continue;
 					}
-					
-					if (!SkriptParser.validateLine(event))
-						continue;
-					
-					if (event.toLowerCase().startsWith("command ")) {
-						
-						getParser().setCurrentEvent("command", CommandEvent.class);
-						
-						ScriptCommand c = Commands.loadCommand(node, false);
-						if (c != null) {
-							commands.add(c);
-							scriptInfo.commandNames.add(c.getName()); // For tab completion
-							scriptInfo.commands++;
-						}
-						
-						getParser().deleteCurrentEvent();
-						
-						continue;
-					} else if (event.toLowerCase().startsWith("function ")) {
-						
-						getParser().setCurrentEvent("function", FunctionEvent.class);
-						
-						Function<?> func = Functions.loadFunction(node);
-						if (func != null) {
-							scriptInfo.functions++;
-						}
-						
-						getParser().deleteCurrentEvent();
-						
-						continue;
-					}
-					
+
 					if (Skript.logVeryHigh() && !Skript.debug())
 						Skript.info("loading trigger '" + event + "'");
 					
@@ -817,7 +714,7 @@ public class ScriptLoader {
 					Skript.info("loaded " + scriptInfo.triggers + " trigger" + (scriptInfo.triggers == 1 ? "" : "s")+ " and " + scriptInfo.commands + " command" + (scriptInfo.commands == 1 ? "" : "s") + " from '" + config.getFileName() + "'");
 				
 				getParser().setCurrentScript(null);
-				Aliases.setScriptAliases(null); // These are per-script
+				getParser().getLoadedStructures().clear();
 			}
 		} catch (Exception e) {
 			//noinspection ThrowableNotThrown
@@ -835,12 +732,7 @@ public class ScriptLoader {
 				if (file != null)
 					unloadScript_(file);
 			}
-			
-			// Now, enable everything!
-			for (ScriptCommand command : commands) {
-				Commands.registerCommand(command);
-			}
-			
+
 			for (ParsedEventData event : events) {
 				getParser().setCurrentEvent("" + event.info.getFirst().getName().toLowerCase(Locale.ENGLISH), event.info.getFirst().events);
 				getParser().setCurrentSkriptEvent(event.info.getSecond());
@@ -973,7 +865,7 @@ public class ScriptLoader {
 	@Nullable
 	public static Config loadStructure(InputStream source, String name) {
 		try {
-			Config config = new Config(
+			return new Config(
 				source,
 				name,
 				Skript.getInstance().getDataFolder().toPath().resolve(Skript.SCRIPTSFOLDER).resolve(name).toFile(),
@@ -981,58 +873,13 @@ public class ScriptLoader {
 				false,
 				":"
 			);
-			return loadStructure(config);
 		} catch (IOException e) {
 			Skript.error("Could not load " + name + ": " + ExceptionUtils.toString(e));
 		}
 		
 		return null;
 	}
-	
-	/**
-	 * Loads structure of given script, currently only for functions. Must be called before
-	 * actually loading that script.
-	 * @param config Config object for the script.
-	 */
-	@Nullable
-	public static Config loadStructure(Config config) {
-		try {
-			for (Node cnode : config.getMainNode()) {
-				if (!(cnode instanceof SectionNode)) {
-					// Don't spit error yet, we are only pre-parsing...
-					continue;
-				}
-				
-				SectionNode node = ((SectionNode) cnode);
-				String event = node.getKey();
-				if (event == null)
-					continue;
-				
-				if (!SkriptParser.validateLine(event))
-					continue;
-				
-				if (event.toLowerCase().startsWith("function ")) {
-					
-					getParser().setCurrentEvent("function", FunctionEvent.class);
-					
-					Functions.loadSignature(config.getFileName(), node);
-					
-					getParser().deleteCurrentEvent();
-				}
-			}
-			
-			getParser().setCurrentScript(null);
-			SkriptLogger.setNode(null);
-			return config;
-		} catch (Exception e) {
-			Skript.exception(e, "Could not load " + config.getFileName());
-		} finally {
-			SkriptLogger.setNode(null);
-		}
-		return null; // Oops something went wrong
-	}
-	
-	
+
 	/*
 	 * Script unloading methods
 	 */
@@ -1530,6 +1377,16 @@ public class ScriptLoader {
 	@Deprecated
 	public static Class<? extends Event>[] getCurrentEvents() {
 		return getParser().getCurrentEvents();
+	}
+
+	/**
+	 * Loads structure of given script, currently only for functions. Must be called before
+	 * actually loading that script.
+	 * @param config Config object for the script.
+	 */
+	@Deprecated
+	public static Config loadStructure(Config config) {
+		return config;
 	}
 	
 }

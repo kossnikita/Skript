@@ -1188,7 +1188,8 @@ public final class Skript extends JavaPlugin implements Listener {
 	}
 	
 	// ================ CONDITIONS & EFFECTS ================
-	
+
+	// TODO maybe revert these changes
 	private static final List<SyntaxElementInfo<? extends Condition>> conditions = new ArrayList<>(50);
 	private static final List<SyntaxElementInfo<? extends Effect>> effects = new ArrayList<>(50);
 	private static final List<SyntaxElementInfo<? extends Statement>> statements = new ArrayList<>(100);

@@ -19,32 +19,37 @@
 package ch.njol.skript.structures;
 
 import ch.njol.skript.Skript;
+import ch.njol.skript.config.EntryNode;
+import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.SkriptParser;
-import ch.njol.skript.log.ParseLogHandler;
-import ch.njol.skript.log.SkriptLogger;
-import org.eclipse.jdt.annotation.Nullable;
+import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.util.Kleenean;
+import org.bukkit.event.Event;
+import org.jetbrains.annotations.Nullable;
 
-public abstract class PreloadingStructure extends Structure {
+public class StructOptions extends Structure {
 
-	public void init(SectionNode node) { }
+	static {
+		Skript.registerStructure(StructOptions.class, "options");
+	}
 
-	@Nullable
-	public static PreloadingStructure parse(String expr, SectionNode sectionNode) {
-		Structure.setNode(sectionNode);
-
-		ParseLogHandler parseLogHandler = SkriptLogger.startParseLogHandler();
-		try {
-			PreloadingStructure preloadingStructure = SkriptParser.parseStatic(expr, Skript.getPreloadingStructures().iterator(), null);
-			if (preloadingStructure != null) {
-				parseLogHandler.printLog();
-				return preloadingStructure;
+	@Override
+	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
+		node.convertToEntries(0);
+		for (Node n : node) {
+			if (!(n instanceof EntryNode)) {
+				Skript.error("Invalid line in options");
+				continue;
 			}
-			parseLogHandler.printError();
-			return null;
-		} finally {
-			parseLogHandler.stop();
+			getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
 		}
+		return true;
+	}
+
+	@Override
+	public String toString(@Nullable Event e, boolean debug) {
+		return "options";
 	}
 
 }

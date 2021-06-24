@@ -36,10 +36,14 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 	@Override
 	public final boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
 		StructureNode structureNode = ParserInstance.get().getData(StructureNode.class);
-		return init(exprs, matchedPattern, isDelayed, structureNode.sectionNode);
+		return init(exprs, matchedPattern, isDelayed, parseResult, structureNode.sectionNode);
 	}
 
-	public abstract boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, SectionNode node);
+	public abstract boolean init(Expression<?>[] exprs,
+								 int matchedPattern,
+								 Kleenean isDelayed,
+								 ParseResult parseResult,
+								 SectionNode node);
 
 	@Override
 	public String toString() {
