@@ -1279,9 +1279,7 @@ public class ScriptLoader {
 	}
 
 	/**
-	 * Loads structure of given script, currently only for functions. Must be called before
-	 * actually loading that script.
-	 * @param config Config object for the script.
+	 * This method has no functionality, it just returns its input.
 	 */
 	@Deprecated
 	public static Config loadStructure(Config config) {
