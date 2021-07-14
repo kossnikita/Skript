@@ -63,12 +63,13 @@ public abstract class PreloadingStructure extends Structure {
 	public void init(SectionNode node) { }
 
 	@Nullable
-	public static PreloadingStructure parse(String expr, SectionNode sectionNode) {
+	public static PreloadingStructure parse(String expr, SectionNode sectionNode, int priority) {
 		Structure.setNode(sectionNode);
 
 		ParseLogHandler parseLogHandler = SkriptLogger.startParseLogHandler();
 		try {
-			PreloadingStructure preloadingStructure = SkriptParser.parseStatic(expr, Skript.getPreloadingStructures().iterator(), null);
+			PreloadingStructure preloadingStructure = SkriptParser.parseStatic(expr,
+				Skript.getPreloadingStructures().stream().filter(info -> info.getPriority() == priority).iterator(), null);
 			if (preloadingStructure != null) {
 				parseLogHandler.printLog();
 				return preloadingStructure;

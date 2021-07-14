@@ -559,31 +559,31 @@ public class ScriptLoader {
 
 	private static final WeakHashMap<SectionNode, PreloadingStructure> preloadedStructures = new WeakHashMap<>();
 
-	@SuppressWarnings("ConstantConditions")
 	private static void callPreScriptLoadEvent(List<Config> configs) {
 		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
 
-		// Preloading structure parsing
-		for (Config config : configs) {
-			getParser().setCurrentScript(config);
-			for (Node node : config.getMainNode()) {
-				if (!(node instanceof SectionNode))
-					continue;
+		List<Integer> priorities = Skript.getPreloadingStructurePriorities();
 
-				SectionNode sectionNode = (SectionNode) node;
-				String key = sectionNode.getKey();
-				if (key == null)
-					continue;
+		for (int priority : priorities) {
+			// Preloading structure parsing
+			for (Config config : configs) {
+				getParser().setCurrentScript(config);
+				for (Node node : config.getMainNode()) {
+					if (!(node instanceof SectionNode))
+						continue;
 
-				if (!SkriptParser.validateLine(key))
-					continue;
+					SectionNode sectionNode = (SectionNode) node;
+					String key = sectionNode.getKey();
 
-				PreloadingStructure preloadingStructure = PreloadingStructure.parse(key, sectionNode);
-				if (preloadingStructure != null) {
-					preloadedStructures.put(sectionNode, preloadingStructure);
+					if (key == null || !SkriptParser.validateLine(key))
+						continue;
+
+					PreloadingStructure preloadingStructure = PreloadingStructure.parse(key, sectionNode, priority);
+					if (preloadingStructure != null)
+						preloadedStructures.put(sectionNode, preloadingStructure);
 				}
+				getParser().setCurrentScript(null);
 			}
-			getParser().setCurrentScript(null);
 		}
 	}
 
@@ -649,7 +649,7 @@ public class ScriptLoader {
 					if (!SkriptParser.validateLine(event))
 						continue;
 
-					Structure structure = preloadedStructures.get(node);
+					Structure structure = preloadedStructures.remove(node);
 					if (structure != null) {
 						PreloadingStructure preloadingStructure = (PreloadingStructure) structure;
 						preloadingStructure.init(node);

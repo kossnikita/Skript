@@ -16,12 +16,21 @@
  *
  * Copyright Peter Güttinger, SkriptLang team and contributors
  */
-/**
- * Support for script-based testing.
- */
-@NonNullByDefault({DefaultLocation.PARAMETER, DefaultLocation.RETURN_TYPE, DefaultLocation.FIELD})
-package ch.njol.skript.structures;
+package ch.njol.skript.lang;
 
-import org.eclipse.jdt.annotation.DefaultLocation;
-import org.eclipse.jdt.annotation.NonNullByDefault;
+import ch.njol.skript.structures.PreloadingStructure;
 
+public class PreloadingStructureInfo<E extends PreloadingStructure> extends SyntaxElementInfo<E> {
+
+	private final int priority;
+
+	public PreloadingStructureInfo(String[] patterns, Class<E> c, String originClassPath, int priority) throws IllegalArgumentException {
+		super(patterns, c, originClassPath);
+		this.priority = priority;
+	}
+
+	public int getPriority() {
+		return priority;
+	}
+
+}

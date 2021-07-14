@@ -32,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
 public class StructFunction extends PreloadingStructure {
 
 	static {
-		Skript.registerStructure(StructFunction.class, "function <.+>");
+		Skript.registerPreloadingStructure(StructFunction.class, 30, "function <.+>");
 	}
 
 	@Override

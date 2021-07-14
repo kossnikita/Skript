@@ -28,10 +28,10 @@ import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 
-public class StructOptions extends Structure {
+public class StructOptions extends PreloadingStructure {
 
 	static {
-		Skript.registerStructure(StructOptions.class, "options");
+		Skript.registerPreloadingStructure(StructOptions.class, 10, "options");
 	}
 
 	@Override
@@ -45,6 +45,15 @@ public class StructOptions extends Structure {
 			getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
 		}
 		return true;
+	}
+
+	@Override
+	public void init(SectionNode node) {
+		for (Node n : node) {
+			// Error in other init method
+			if (n instanceof EntryNode)
+				getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
+		}
 	}
 
 	@Override
