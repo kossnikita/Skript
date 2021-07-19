@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ParserInstance {
 	
@@ -106,6 +107,17 @@ public class ParserInstance {
 
 	public List<Structure> getLoadedStructures() {
 		return loadedStructures;
+	}
+
+	/**
+	 * @return the {@link #getLoadedStructures()} that are an instance of the given Structure class
+	 */
+	@SuppressWarnings("unchecked")
+	public <E extends Structure> List<E> getLoadedStructures(Class<? extends E> structureClass) {
+		return loadedStructures.stream()
+			.filter(structureClass::isInstance)
+			.map(structure -> (E) structure)
+			.collect(Collectors.toList());
 	}
 
 	@Nullable
@@ -191,8 +203,12 @@ public class ParserInstance {
 	}
 	
 	public void setCurrentScript(@Nullable Config currentScript) {
+		Config previous = this.currentScript;
 		this.currentScript = currentScript;
-		getDataInstances().forEach(data -> data.onCurrentScriptChange(currentScript));
+		getDataInstances().forEach(data -> {
+			data.onCurrentScriptChange(previous, currentScript);
+			data.onCurrentScriptChange(currentScript);
+		});
 	}
 
 	public void setScriptInfo(ScriptInfo scriptInfo) {
@@ -262,7 +278,7 @@ public class ParserInstance {
 	 */
 	/**
 	 * An abstract class for addons that want to add data bound to a ParserInstance.
-	 * Extending classes may listen to the events {@link #onCurrentScriptChange(Config)}
+	 * Extending classes may listen to the events {@link #onCurrentScriptChange(Config, Config)}
 	 * and {@link #onCurrentEventsChange(Class[])}.
 	 * It is recommended you make a constructor with a {@link ParserInstance} parameter that
 	 * sends that parser instance upwards in a super call, so you can use
@@ -279,9 +295,12 @@ public class ParserInstance {
 		protected final ParserInstance getParser() {
 			return parserInstance;
 		}
-		
+
+		@Deprecated
 		public void onCurrentScriptChange(@Nullable Config currentScript) { }
-		
+
+		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) { }
+
 		public void onCurrentEventsChange(@Nullable Class<? extends Event>[] currentEvents) { }
 		
 	}

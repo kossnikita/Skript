@@ -26,13 +26,10 @@ import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.config.SimpleNode;
 import ch.njol.skript.effects.Delay;
 import ch.njol.skript.events.bukkit.PreScriptLoadEvent;
+import ch.njol.skript.lang.PreloadingStructureInfo;
 import ch.njol.skript.lang.Section;
-import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
-import ch.njol.skript.lang.SkriptEvent;
-import ch.njol.skript.lang.SkriptEventInfo;
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.Statement;
-import ch.njol.skript.lang.Trigger;
 import ch.njol.skript.lang.TriggerItem;
 import ch.njol.skript.lang.TriggerSection;
 import ch.njol.skript.lang.VariableString;
@@ -53,7 +50,6 @@ import ch.njol.skript.util.ExceptionUtils;
 import ch.njol.skript.util.Task;
 import ch.njol.skript.variables.TypeHints;
 import ch.njol.util.Kleenean;
-import ch.njol.util.NonNullPair;
 import ch.njol.util.OpenCloseable;
 import ch.njol.util.StringUtils;
 import org.bukkit.Bukkit;
@@ -74,7 +70,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -562,8 +557,13 @@ public class ScriptLoader {
 	private static void callPreScriptLoadEvent(List<Config> configs) {
 		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
 
-		List<Integer> priorities = Skript.getPreloadingStructurePriorities();
+		List<Integer> priorities = new ArrayList<>();
+		for (PreloadingStructureInfo<?> preloadingStructureInfo : Skript.getPreloadingStructures()) {
+			priorities.add(preloadingStructureInfo.getPriority());
+		}
+		priorities.sort(Integer::compare);
 
+		// TODO properly handle options in here
 		for (int priority : priorities) {
 			// Preloading structure parsing
 			for (Config config : configs) {
@@ -588,26 +588,6 @@ public class ScriptLoader {
 	}
 
 	/**
-	 * Represents data for event which is waiting to be loaded.
-	 */
-	private static class ParsedEventData {
-		public final NonNullPair<SkriptEventInfo<?>, SkriptEvent> info;
-		public final String event;
-		public final SectionNode node;
-		public final List<TriggerItem> items;
-		
-		public ParsedEventData(NonNullPair<SkriptEventInfo<?>, SkriptEvent> info,
-							   String event,
-							   SectionNode node,
-							   List<TriggerItem> items) {
-			this.info = info;
-			this.event = event;
-			this.node = node;
-			this.items = items;
-		}
-	}
-
-	/**
 	 * Loads one script. Only for internal use, as this doesn't register/update
 	 * event handlers.
 	 * @param config Config for script to be loaded.
@@ -618,10 +598,7 @@ public class ScriptLoader {
 		if (config == null) { // Something bad happened, hopefully got logged to console
 			return new ScriptInfo();
 		}
-		
-		// When something is parsed, it goes there to be loaded later
-		List<ParsedEventData> events = new ArrayList<>();
-		
+
 		// Track what is loaded
 		ScriptInfo scriptInfo = new ScriptInfo();
 		getParser().setScriptInfo(scriptInfo);
@@ -649,47 +626,23 @@ public class ScriptLoader {
 					if (!SkriptParser.validateLine(event))
 						continue;
 
+					if (Skript.logVeryHigh() && !Skript.debug())
+						Skript.info("loading trigger '" + event + "'");
+
+					event = replaceOptions(event);
+
 					Structure structure = preloadedStructures.remove(node);
 					if (structure != null) {
 						PreloadingStructure preloadingStructure = (PreloadingStructure) structure;
 						preloadingStructure.init(node);
 					} else {
-						structure = Structure.parse(event, node);
+						structure = Structure.parse(event, node, "can't understand this event: '" + node.getKey() + "'");
 					}
 
 					if (structure != null) {
 						getParser().getLoadedStructures().add(structure);
-						continue;
 					}
 
-					if (Skript.logVeryHigh() && !Skript.debug())
-						Skript.info("loading trigger '" + event + "'");
-					
-					if (StringUtils.startsWithIgnoreCase(event, "on "))
-						event = "" + event.substring("on ".length());
-					
-					event = replaceOptions(event);
-					
-					NonNullPair<SkriptEventInfo<?>, SkriptEvent> parsedEvent = SkriptParser.parseEvent(event, "can't understand this event: '" + node.getKey() + "'");
-					if (parsedEvent == null || !parsedEvent.getSecond().shouldLoadEvent())
-						continue;
-					
-					if (Skript.debug() || node.debug())
-						Skript.debug(event + " (" + parsedEvent.getSecond().toString(null, true) + "):");
-					
-					try {
-						getParser().setCurrentEvent("" + parsedEvent.getFirst().getName().toLowerCase(Locale.ENGLISH), parsedEvent.getFirst().events);
-						getParser().setCurrentSkriptEvent(parsedEvent.getSecond());
-						events.add(new ParsedEventData(parsedEvent, event, node, loadItems(node)));
-					} finally {
-						getParser().deleteCurrentEvent();
-						getParser().deleteCurrentSkriptEvent();
-					}
-					
-					if (parsedEvent.getSecond() instanceof SelfRegisteringSkriptEvent) {
-						((SelfRegisteringSkriptEvent) parsedEvent.getSecond()).afterParse(config);
-					}
-					
 					scriptInfo.triggers++;
 				}
 				
@@ -714,30 +667,6 @@ public class ScriptLoader {
 			if (isAsync()) {
 				if (file != null)
 					unloadScript_(file);
-			}
-
-			for (ParsedEventData event : events) {
-				getParser().setCurrentEvent("" + event.info.getFirst().getName().toLowerCase(Locale.ENGLISH), event.info.getFirst().events);
-				getParser().setCurrentSkriptEvent(event.info.getSecond());
-				
-				Trigger trigger;
-				try {
-					trigger = new Trigger(config.getFile(), event.event, event.info.getSecond(), event.items);
-					trigger.setLineNumber(event.node.getLine()); // Set line number for debugging
-					trigger.setDebugLabel(config.getFileName() + ": line " + event.node.getLine());
-				} finally {
-					getParser().deleteCurrentEvent();
-				}
-				
-				if (event.info.getSecond() instanceof SelfRegisteringSkriptEvent) {
-					((SelfRegisteringSkriptEvent) event.info.getSecond()).register(trigger);
-					SkriptEventHandler.addSelfRegisteringTrigger(trigger);
-				} else {
-					SkriptEventHandler.addTrigger(event.info.getFirst().events, trigger);
-				}
-				
-				getParser().deleteCurrentEvent();
-				getParser().deleteCurrentSkriptEvent();
 			}
 			
 			// Remove the script from the disabled scripts list
@@ -1027,38 +956,6 @@ public class ScriptLoader {
 		
 		return items;
 	}
-	
-	/**
-	 * For unit testing
-	 *
-	 * @param node
-	 * @return The loaded Trigger
-	 */
-	@Nullable
-	static Trigger loadTrigger(SectionNode node) {
-		String event = node.getKey();
-		if (event == null) {
-			assert false : node;
-			return null;
-		}
-		if (event.toLowerCase().startsWith("on "))
-			event = "" + event.substring("on ".length());
-		
-		NonNullPair<SkriptEventInfo<?>, SkriptEvent> parsedEvent =
-			SkriptParser.parseEvent(event, "can't understand this event: '" + node.getKey() + "'");
-		if (parsedEvent == null) {
-			assert false;
-			return null;
-		}
-		
-		getParser().setCurrentEvent("unit test", parsedEvent.getFirst().events);
-		try {
-			return new Trigger(null, event, parsedEvent.getSecond(), loadItems(node));
-		} finally {
-			getParser().deleteCurrentEvent();
-		}
-	}
-	
 	
 	/*
 	 * Loaded script statistics

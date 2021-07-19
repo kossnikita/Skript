@@ -22,14 +22,19 @@ import ch.njol.skript.Skript;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.lang.Debuggable;
 import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.ParseContext;
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.SyntaxElement;
+import ch.njol.skript.lang.SyntaxElementInfo;
 import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.log.ParseLogHandler;
 import ch.njol.skript.log.SkriptLogger;
 import ch.njol.util.Kleenean;
+import ch.njol.util.coll.iterator.ConsumingIterator;
 import org.eclipse.jdt.annotation.Nullable;
+
+import java.util.Iterator;
 
 /**
  * A {@link Structure} should be used instead of an event, in the following scenarios:
@@ -60,8 +65,8 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 
 	@Override
 	public final boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		StructureNode structureNode = ParserInstance.get().getData(StructureNode.class);
-		return init(exprs, matchedPattern, isDelayed, parseResult, structureNode.sectionNode);
+		StructureData structureData = getParser().getData(StructureData.class);
+		return init(exprs, matchedPattern, isDelayed, parseResult, structureData.sectionNode);
 	}
 
 	/**
@@ -80,12 +85,16 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 	}
 
 	@Nullable
-	public static Structure parse(String expr, SectionNode sectionNode) {
+	public static Structure parse(String expr, SectionNode sectionNode, @Nullable String defaultError) {
 		Structure.setNode(sectionNode);
+
+		Iterator<SyntaxElementInfo<? extends Structure>> iterator =
+			new ConsumingIterator<>(Skript.getNormalStructures().iterator(),
+				elementInfo -> ParserInstance.get().getData(StructureData.class).syntaxElementInfo = elementInfo);
 
 		ParseLogHandler parseLogHandler = SkriptLogger.startParseLogHandler();
 		try {
-			Structure structure = SkriptParser.parseStatic(expr, Skript.getNormalStructures().iterator(), null);
+			Structure structure = SkriptParser.parseStatic(expr, iterator, ParseContext.EVENT, defaultError);
 			if (structure != null) {
 				parseLogHandler.printLog();
 				return structure;
@@ -98,19 +107,26 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 	}
 
 	static void setNode(SectionNode sectionNode) {
-		StructureNode structureNode = ParserInstance.get().getData(StructureNode.class);
-		structureNode.sectionNode = sectionNode;
+		StructureData structureData = ParserInstance.get().getData(StructureData.class);
+		structureData.sectionNode = sectionNode;
+	}
+
+	@Nullable
+	protected static SyntaxElementInfo<? extends Structure> getSyntaxElementInfo() {
+		return ParserInstance.get().getData(StructureData.class).syntaxElementInfo;
 	}
 
 	static {
-		ParserInstance.registerData(StructureNode.class, StructureNode::new);
+		ParserInstance.registerData(StructureData.class, StructureData::new);
 	}
 
 	@SuppressWarnings("NotNullFieldNotInitialized")
-	private static class StructureNode extends ParserInstance.Data {
+	private static class StructureData extends ParserInstance.Data {
 		private SectionNode sectionNode;
+		@Nullable
+		private SyntaxElementInfo<? extends Structure> syntaxElementInfo;
 
-		public StructureNode(ParserInstance parserInstance) {
+		public StructureData(ParserInstance parserInstance) {
 			super(parserInstance);
 		}
 	}

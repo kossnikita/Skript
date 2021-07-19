@@ -141,6 +141,7 @@ import java.util.logging.Filter;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -1346,8 +1347,6 @@ public final class Skript extends JavaPlugin implements Listener {
 	}
 	
 	// ================ EVENTS ================
-	
-	private static final Collection<SkriptEventInfo<?>> events = new ArrayList<>(50);
 
 	private static final List<SyntaxElementInfo<? extends Structure>> normalStructures = new ArrayList<>(10);
 	private static final List<PreloadingStructureInfo<? extends PreloadingStructure>> preloadingStructures = new ArrayList<>(10);
@@ -1362,12 +1361,9 @@ public final class Skript extends JavaPlugin implements Listener {
 	 * @param patterns Skript patterns to match this event
 	 * @return A SkriptEventInfo representing the registered event. Used to generate Skript's documentation.
 	 */
+	@SuppressWarnings("unchecked")
 	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(String name, Class<E> c, Class<? extends Event> event, String... patterns) {
-		checkAcceptRegistrations();
-		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
-		SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, CollectionUtils.array(event));
-		events.add(r);
-		return r;
+		return registerEvent(name, c, new Class[] {event}, patterns);
 	}
 	
 	/**
@@ -1382,8 +1378,13 @@ public final class Skript extends JavaPlugin implements Listener {
 	public static <E extends SkriptEvent> SkriptEventInfo<E> registerEvent(String name, Class<E> c, Class<? extends Event>[] events, String... patterns) {
 		checkAcceptRegistrations();
 		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
-		SkriptEventInfo<E> r = new SkriptEventInfo<>(name, patterns, c, originClassPath, events);
-		Skript.events.add(r);
+
+		String[] transformedPatterns = new String[patterns.length];
+		for (int i = 0; i < patterns.length; i++)
+			transformedPatterns[i] = "[on] " + patterns[i] + " [with priority (lowest|low|normal|high|highest|monitor)]";
+
+		SkriptEventInfo<E> r = new SkriptEventInfo<>(name, transformedPatterns, c, originClassPath, events);
+		Skript.normalStructures.add(r);
 		return r;
 	}
 
@@ -1407,8 +1408,14 @@ public final class Skript extends JavaPlugin implements Listener {
 		preloadingStructures.add(preloadingStructureInfo);
 	}
 
+	/**
+	 * Modifications made to the returned Collection will not be reflected in the events available for parsing.
+	 */
 	public static Collection<SkriptEventInfo<?>> getEvents() {
-		return events;
+		return normalStructures.stream()
+			.filter(info -> info instanceof SkriptEventInfo)
+			.map(info -> (SkriptEventInfo<?>) info)
+			.collect(Collectors.toList());
 	}
 
 	public static List<SyntaxElementInfo<? extends Structure>> getNormalStructures() {
@@ -1419,15 +1426,6 @@ public final class Skript extends JavaPlugin implements Listener {
 		return preloadingStructures;
 	}
 
-	public static List<Integer> getPreloadingStructurePriorities() {
-		List<Integer> list = new ArrayList<>();
-		for (PreloadingStructureInfo<?> preloadingStructureInfo : preloadingStructures) {
-			list.add(preloadingStructureInfo.getPriority());
-		}
-		list.sort(Integer::compare);
-		return list;
-	}
-	
 	// ================ COMMANDS ================
 	
 	/**

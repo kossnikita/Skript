@@ -71,14 +71,12 @@ public class StructCommand extends Structure {
 		}
 
 		@Override
-		public void onCurrentScriptChange(@Nullable Config currentScript) {
+		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) {
 			Runnable runnable = () -> {
-				for (Structure structure : getParser().getLoadedStructures()) {
-					if (structure instanceof StructCommand) {
-						ScriptCommand command = ((StructCommand) structure).command;
-						if (command != null)
-							Commands.registerCommand(command);
-					}
+				for (StructCommand structure : getParser().getLoadedStructures(StructCommand.class)) {
+					ScriptCommand command = structure.command;
+					if (command != null)
+						Commands.registerCommand(command);
 				}
 			};
 

@@ -59,8 +59,8 @@ public class StructAliases extends Structure {
 		}
 
 		@Override
-		public void onCurrentScriptChange(@Nullable Config currentScript) {
-			Aliases.setScriptAliases(null); // These are per-script
+		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) {
+			Aliases.setScriptAliases(null);
 		}
 	}
 

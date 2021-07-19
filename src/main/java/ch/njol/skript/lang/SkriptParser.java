@@ -134,6 +134,11 @@ public class SkriptParser {
 			expr = parser.expr;
 			exprs = new Expression<?>[countUnescaped(pattern, '%') / 2];
 		}
+
+		public ParseResult(Expression<?>[] exprs, String expr) {
+			this.exprs = exprs;
+			this.expr = expr;
+		}
 	}
 	
 	private final static class MalformedPatternException extends RuntimeException {
@@ -189,16 +194,22 @@ public class SkriptParser {
 	}
 	
 	@Nullable
-	public static <T extends SyntaxElement> T parseStatic(String expr, final Iterator<? extends SyntaxElementInfo<? extends T>> source, final @Nullable String defaultError) {
-		expr = "" + expr.trim();
+	public static <T extends SyntaxElement> T parseStatic(String expr, Iterator<? extends SyntaxElementInfo<? extends T>> source, @Nullable String defaultError) {
+		return parseStatic(expr, source, ParseContext.DEFAULT, defaultError);
+	}
+
+	@Nullable
+	public static <T extends SyntaxElement> T parseStatic(String expr, Iterator<? extends SyntaxElementInfo<? extends T>> source, ParseContext parseContext, @Nullable String defaultError) {
+		expr = expr.trim();
 		if (expr.isEmpty()) {
 			Skript.error(defaultError);
 			return null;
 		}
-		final ParseLogHandler log = SkriptLogger.startParseLogHandler();
-		final T e;
+
+		ParseLogHandler log = SkriptLogger.startParseLogHandler();
+		T e;
 		try {
-			e = new SkriptParser(expr, PARSE_LITERALS).parse(source);
+			e = new SkriptParser(expr, PARSE_LITERALS, parseContext).parse(source);
 			if (e != null) {
 				log.printLog();
 				return e;
@@ -209,28 +220,28 @@ public class SkriptParser {
 			log.stop();
 		}
 	}
-	
+
 	@Nullable
-	private final <T extends SyntaxElement> T parse(final Iterator<? extends SyntaxElementInfo<? extends T>> source) {
-		final ParseLogHandler log = SkriptLogger.startParseLogHandler();
+	private <T extends SyntaxElement> T parse(Iterator<? extends SyntaxElementInfo<? extends T>> source) {
+		ParseLogHandler log = SkriptLogger.startParseLogHandler();
 		try {
 			while (source.hasNext()) {
-				final SyntaxElementInfo<? extends T> info = source.next();
+				SyntaxElementInfo<? extends T> info = source.next();
 				patternsLoop: for (int i = 0; i < info.patterns.length; i++) {
 					log.clear();
 					try {
-						final String pattern = info.patterns[i];
+						String pattern = info.patterns[i];
 						assert pattern != null;
-						final ParseResult res = parse_i(pattern, 0, 0);
+						ParseResult res = parse_i(pattern, 0, 0);
 						if (res != null) {
 							int x = -1;
 							for (int j = 0; (x = nextUnescaped(pattern, '%', x + 1)) != -1; j++) {
-								final int x2 = nextUnescaped(pattern, '%', x + 1);
+								int x2 = nextUnescaped(pattern, '%', x + 1);
 								if (res.exprs[j] == null) {
 									final String name = pattern.substring(x + 1, x2);
 									if (!name.startsWith("-")) {
-										final ExprInfo vi = getExprInfo(name);
-										final DefaultExpression<?> expr = vi.classes[0].getDefaultExpression();
+										ExprInfo vi = getExprInfo(name);
+										DefaultExpression<?> expr = vi.classes[0].getDefaultExpression();
 										if (expr == null)
 											throw new SkriptAPIException("The class '" + vi.classes[0].getCodeName() + "' does not provide a default expression. Either allow null (with %-" + vi.classes[0].getCodeName() + "%) or make it mandatory [pattern: " + info.patterns[i] + "]");
 										if (!(expr instanceof Literal) && (vi.flagMask & PARSE_EXPRESSIONS) == 0)
@@ -248,15 +259,13 @@ public class SkriptParser {
 								}
 								x = x2;
 							}
-							final T t = info.c.newInstance();
+							T t = info.c.newInstance();
 							if (t.init(res.exprs, i, getParser().getHasDelayBefore(), res)) {
 								log.printLog();
 								return t;
 							}
 						}
-					} catch (final InstantiationException e) {
-						assert false;
-					} catch (final IllegalAccessException e) {
+					} catch (final InstantiationException | IllegalAccessException e) {
 						assert false;
 					}
 				}
@@ -1043,84 +1052,6 @@ public class SkriptParser {
 	@Nullable
 	public static ParseResult parse(final String text, final String pattern) {
 		return new SkriptParser(text, PARSE_LITERALS, ParseContext.COMMAND).parse_i(pattern, 0, 0);
-	}
-	
-	@Nullable
-	public static NonNullPair<SkriptEventInfo<?>, SkriptEvent> parseEvent(String event, String defaultError) {
-		RetainingLogHandler log = SkriptLogger.startRetainingLog();
-		try {
-			String[] split = event.split(" with priority ");
-			EventPriority priority;
-			if (split.length != 1) {
-				event = String.join(" with priority ", Arrays.copyOfRange(split, 0, split.length - 1));
-				
-				String priorityString = split[split.length - 1];
-				try {
-					priority = EventPriority.valueOf(priorityString.toUpperCase());
-				} catch (IllegalArgumentException e) { // Priority doesn't exist
-					log.printErrors("The priority " + priorityString + " doesn't exist");
-					return null;
-				}
-			} else {
-				priority = null;
-			}
-			
-			NonNullPair<SkriptEventInfo<?>, SkriptEvent> e = new SkriptParser(event, PARSE_LITERALS, ParseContext.EVENT).parseEvent();
-			if (e != null) {
-				if (priority != null && e.getSecond() instanceof SelfRegisteringSkriptEvent) {
-					log.printErrors("This event doesn't support event priority");
-					return null;
-				}
-				
-				//noinspection ConstantConditions
-				e.getSecond().eventPriority = priority;
-				
-				log.printLog();
-				return e;
-			}
-			log.printErrors(defaultError);
-			return null;
-		} finally {
-			log.stop();
-		}
-	}
-	
-	@Nullable
-	private NonNullPair<SkriptEventInfo<?>, SkriptEvent> parseEvent() {
-		assert context == ParseContext.EVENT;
-		assert flags == PARSE_LITERALS;
-		final ParseLogHandler log = SkriptLogger.startParseLogHandler();
-		try {
-			for (final SkriptEventInfo<?> info : Skript.getEvents()) {
-				for (int i = 0; i < info.patterns.length; i++) {
-					log.clear();
-					try {
-						final String pattern = info.patterns[i];
-						assert pattern != null;
-						final ParseResult res = parse_i(pattern, 0, 0);
-						if (res != null) {
-							final SkriptEvent e = info.c.newInstance();
-							final Literal<?>[] ls = Arrays.copyOf(res.exprs, res.exprs.length, Literal[].class);
-							assert ls != null;
-							if (!e.init(ls, i, res)) {
-								log.printError();
-								return null;
-							}
-							log.printLog();
-							return new NonNullPair<>(info, e);
-						}
-					} catch (final InstantiationException e) {
-						assert false;
-					} catch (final IllegalAccessException e) {
-						assert false;
-					}
-				}
-			}
-			log.printError(null);
-			return null;
-		} finally {
-			log.stop();
-		}
 	}
 	
 	/**
