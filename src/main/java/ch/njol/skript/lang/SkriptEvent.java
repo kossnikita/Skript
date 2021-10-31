@@ -89,7 +89,7 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 		}
 
 		Literal<?>[] literals = Arrays.copyOf(exprs, exprs.length, Literal[].class);
-		ParseResult newParseResult = new ParseResult(literals, expr);
+		ParseResult newParseResult = new ParseResult(expr, literals);
 		newParseResult.regexes.addAll(parseResult.regexes);
 		newParseResult.mark = parseResult.mark;
 

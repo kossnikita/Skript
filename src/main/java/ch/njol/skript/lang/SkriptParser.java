@@ -138,11 +138,6 @@ public class SkriptParser {
 			exprs = new Expression<?>[countUnescaped(pattern, '%') / 2];
 		}
 
-		public ParseResult(Expression<?>[] exprs, String expr) {
-			this.exprs = exprs;
-			this.expr = expr;
-		}
-
 		public ParseResult(String expr, Expression<?>[] expressions) {
 			this.expr = expr;
 			this.exprs = expressions;
