@@ -36,23 +36,25 @@ public class StructOptions extends PreloadingStructure {
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
-		node.convertToEntries(0);
-		for (Node n : node) {
-			if (!(n instanceof EntryNode)) {
-				Skript.error("Invalid line in options");
-				continue;
-			}
-			getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
-		}
+		node.convertToEntries(-1);
+		registerOptions(node, "", true);
 		return true;
 	}
 
 	@Override
 	public void init(SectionNode node) {
-		for (Node n : node) {
-			// Error in other init method
-			if (n instanceof EntryNode)
-				getParser().getCurrentOptions().put(n.getKey(), ((EntryNode) n).getValue());
+		registerOptions(node, "", false);
+	}
+
+	private void registerOptions(SectionNode sectionNode, String prefix, boolean error) {
+		for (Node n : sectionNode) {
+			if (n instanceof EntryNode) {
+				getParser().getCurrentOptions().put(prefix + n.getKey(), ((EntryNode) n).getValue());
+			} else if (n instanceof SectionNode) {
+				registerOptions((SectionNode) n, prefix + n.getKey() + ".", error);
+			} else if (error) {
+				Skript.error("Invalid line in options");
+			}
 		}
 	}
 
