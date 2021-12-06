@@ -53,23 +53,23 @@ public class EvtBlockLegacy extends SkriptEvent {
 
 	static {
 		if (!Skript.isRunningMinecraft(1, 13)) {
-			Skript.registerEvent("Break / Mine", EvtBlockLegacy.class, new Class[]{BlockBreakEvent.class, PlayerBucketFillEvent.class, HangingBreakEvent.class}, "[block] (break[ing]|1¦min(e|ing)) [[of] %itemtypes%]")
+			Skript.registerEvent("Break / Mine", EvtBlockLegacy.class, new Class[]{BlockBreakEvent.class, PlayerBucketFillEvent.class, HangingBreakEvent.class}, "[block] (break[ing]|1¦min(e|ing)) [[of] %-itemtypes%]")
 				.description("Called when a block is broken by a player. If you use 'on mine', only events where the broken block dropped something will call the trigger.")
 				.examples("on mine:", "on break of stone:", "on mine of any ore:")
 				.since("1.0 (break), <i>unknown</i> (mine)");
-			Skript.registerEvent("Burn", EvtBlockLegacy.class, BlockBurnEvent.class, "[block] burn[ing] [[of] %itemtypes%]")
+			Skript.registerEvent("Burn", EvtBlockLegacy.class, BlockBurnEvent.class, "[block] burn[ing] [[of] %-itemtypes%]")
 				.description("Called when a block is destroyed by fire.")
 				.examples("on burn:", "on burn of wood, fences, or chests:")
 				.since("1.0");
-			Skript.registerEvent("Place", EvtBlockLegacy.class, new Class[]{BlockPlaceEvent.class, PlayerBucketEmptyEvent.class, HangingPlaceEvent.class}, "[block] (plac(e|ing)|build[ing]) [[of] %itemtypes%]")
+			Skript.registerEvent("Place", EvtBlockLegacy.class, new Class[]{BlockPlaceEvent.class, PlayerBucketEmptyEvent.class, HangingPlaceEvent.class}, "[block] (plac(e|ing)|build[ing]) [[of] %-itemtypes%]")
 				.description("Called when a player places a block.")
 				.examples("on place:", "on place of a furnace, workbench or chest:")
 				.since("1.0");
-			Skript.registerEvent("Fade", EvtBlockLegacy.class, BlockFadeEvent.class, "[block] fad(e|ing) [[of] %itemtypes%]")
+			Skript.registerEvent("Fade", EvtBlockLegacy.class, BlockFadeEvent.class, "[block] fad(e|ing) [[of] %-itemtypes%]")
 				.description("Called when a block 'fades away', e.g. ice or snow melts.")
 				.examples("on fade of snow or ice:")
 				.since("1.0");
-			Skript.registerEvent("Form", EvtBlockLegacy.class, BlockFormEvent.class, "[block] form[ing] [[of] %itemtypes%]")
+			Skript.registerEvent("Form", EvtBlockLegacy.class, BlockFormEvent.class, "[block] form[ing] [[of] %-itemtypes%]")
 				.description("Called when a block is created, but not by a player, e.g. snow forms due to snowfall, water freezes in cold biomes. This isn't called when block spreads (mushroom growth, water physics etc.), as it has its own event (see <a href='#spread'>spread event</a>).")
 				.examples("on form of snow:", "on form of a mushroom:")
 				.since("1.0");
