@@ -19,6 +19,16 @@
 package ch.njol.skript.lang.parser;
 
 import ch.njol.skript.ScriptLoader.ScriptInfo;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
+
 import ch.njol.skript.config.Config;
 import ch.njol.skript.config.Node;
 import ch.njol.skript.lang.Expression;
@@ -168,7 +178,8 @@ public class ParserInstance {
 	@SuppressWarnings("unchecked")
 	@Nullable
 	public <T extends TriggerSection> T getCurrentSection(Class<T> sectionClass) {
-		for (TriggerSection triggerSection : currentSections) {
+		for (int i = currentSections.size(); i-- > 0;) {
+			TriggerSection triggerSection = currentSections.get(i);
 			if (sectionClass.isInstance(triggerSection))
 				return (T) triggerSection;
 		}

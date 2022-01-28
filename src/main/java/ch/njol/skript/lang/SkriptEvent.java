@@ -48,15 +48,14 @@ import java.util.concurrent.Callable;
  * (e.g. the rightclick event is included in the PlayerInteractEvent which also includes lefclicks, thus the SkriptEvent {@link EvtClick} checks whether it was a rightclick or
  * not).<br/>
  * It is also needed if the event has parameters.
- * 
- * @author Peter Güttinger
+ *
  * @see Skript#registerEvent(String, Class, Class, String...)
  * @see Skript#registerEvent(String, Class, Class[], String...)
  */
 public abstract class SkriptEvent extends Structure implements SyntaxElement, Debuggable {
 
-	@Nullable
-	protected EventPriority eventPriority;
+  @Nullable
+	EventPriority eventPriority;
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
@@ -120,7 +119,7 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 
 		return true;
 	}
-	
+
 	/**
 	 * called just after the constructor
 	 */
@@ -129,11 +128,11 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	/**
 	 * Checks whether the given Event applies, e.g. the leftclick event is only part of the PlayerInteractEvent, and this checks whether the player leftclicked or not. This method
 	 * will only be called for events this SkriptEvent is registered for.
-	 *
+   * 
 	 * @return true if this is SkriptEvent is represented by the Bukkit Event or false if not
 	 */
 	public abstract boolean check(Event e);
-	
+
 	/**
 	 * Script loader checks this before loading items in event. If false is
 	 * returned, they are not parsed and the event is not registered.
@@ -141,6 +140,14 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	 */
 	public boolean shouldLoadEvent() {
 		return true;
+	}
+
+	/**
+	 * @return the Event classes to use in {@link ch.njol.skript.lang.parser.ParserInstance},
+	 * or {@code null} if the Event classes this SkriptEvent was registered with should be used.
+	 */
+	public Class<? extends Event> @Nullable[] getEventClasses() {
+		return null;
 	}
 
 	/**
@@ -226,5 +233,12 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 			this.items = items;
 		}
 	}
-	
+
+	/**
+	 * @return whether this SkriptEvent supports event priorities
+	 */
+	public boolean isEventPrioritySupported() {
+		return true;
+	}
+
 }
