@@ -54,7 +54,7 @@ import java.util.concurrent.Callable;
  */
 public abstract class SkriptEvent extends Structure implements SyntaxElement, Debuggable {
 
-  @Nullable
+	@Nullable
 	EventPriority eventPriority;
 
 	@Override
@@ -124,11 +124,10 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	 * called just after the constructor
 	 */
 	public abstract boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult);
-	
+
 	/**
 	 * Checks whether the given Event applies, e.g. the leftclick event is only part of the PlayerInteractEvent, and this checks whether the player leftclicked or not. This method
 	 * will only be called for events this SkriptEvent is registered for.
-   * 
 	 * @return true if this is SkriptEvent is represented by the Bukkit Event or false if not
 	 */
 	public abstract boolean check(Event e);
