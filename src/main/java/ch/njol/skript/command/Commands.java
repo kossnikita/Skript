@@ -532,15 +532,24 @@ public abstract class Commands {
 			final ScriptCommand c = commandsIter.next();
 			if (script.equals(c.getScript())) {
 				numCommands++;
-				c.unregisterHelp();
-				if (commandMap != null) {
-					assert cmKnownCommands != null;// && cmAliases != null;
-					c.unregister(commandMap, cmKnownCommands, cmAliases);
-				}
+				unregister(c);
+//				c.unregisterHelp();
+//				if (commandMap != null) {
+//					assert cmKnownCommands != null;// && cmAliases != null;
+////					c.unregister(commandMap, cmKnownCommands, cmAliases);
+//				}
 				commandsIter.remove();
 			}
 		}
 		return numCommands;
+	}
+
+	public static void unregister(ScriptCommand scriptCommand) {
+		scriptCommand.unregisterHelp();
+		if (commandMap != null) {
+			assert cmKnownCommands != null;// && cmAliases != null;
+			scriptCommand.unregister(commandMap, cmKnownCommands, cmAliases);
+		}
 	}
 	
 	private static boolean registeredListeners = false;

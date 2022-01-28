@@ -18,13 +18,15 @@
  */
 package ch.njol.skript;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
+import ch.njol.skript.ScriptLoader.ScriptInfo;
+import ch.njol.skript.command.Commands;
+import ch.njol.skript.config.Config;
+import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
+import ch.njol.skript.lang.Trigger;
+import ch.njol.skript.lang.parser.ParserInstance;
+import ch.njol.skript.structures.Structure;
+import ch.njol.skript.timings.SkriptTimings;
+import ch.njol.util.NonNullPair;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -40,20 +42,18 @@ import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.plugin.EventExecutor;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.ScriptLoader.ScriptInfo;
-import ch.njol.skript.command.Commands;
-import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
-import ch.njol.skript.lang.Trigger;
-import ch.njol.skript.timings.SkriptTimings;
-import ch.njol.util.NonNullPair;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
-/**
- * @author Peter Güttinger
- */
 public abstract class SkriptEventHandler {
 
 	/**
-	 * A event listener for one priority.
+	 * An event listener for one priority.
 	 * Also stores the registered events for this listener, and
 	 * the {@link EventExecutor} to be used with this listener.
 	 */
@@ -93,6 +93,7 @@ public abstract class SkriptEventHandler {
 	private static final List<NonNullPair<Class<? extends Event>, Trigger>> triggers = new ArrayList<>();
 	
 	private static final List<Trigger> selfRegisteredTriggers = new ArrayList<>();
+	private static final HashMap<File, List<Structure>> structures = new HashMap<>();
 	
 	private static Iterator<Trigger> getTriggers(Class<? extends Event> event) {
 		return triggers.stream()
@@ -194,6 +195,24 @@ public abstract class SkriptEventHandler {
 		assert t.getEvent() instanceof SelfRegisteringSkriptEvent;
 		selfRegisteredTriggers.add(t);
 	}
+
+	private static List<Structure> getStructures(File script) {
+		return structures.computeIfAbsent(script, file -> new ArrayList<>());
+	}
+
+	/**
+	 * Adds a {@link Structure} to the loaded structures.
+	 *
+	 * @param structure the structure to add
+	 * @throws IllegalStateException when {@link ParserInstance#getCurrentScript()} is null
+	 */
+	public static void addStructure(Structure structure) throws IllegalStateException {
+		Config config = ParserInstance.get().getCurrentScript();
+		if (config == null || config.getFile() == null)
+			throw new IllegalStateException("Current script is null");
+		File script = config.getFile();
+		getStructures(script).add(structure);
+	}
 	
 	static ScriptInfo removeTriggers(File script) {
 		ScriptInfo info = new ScriptInfo();
@@ -212,6 +231,11 @@ public abstract class SkriptEventHandler {
 				i--;
 			}
 		}
+
+		for (Structure structure : getStructures(script)) {
+			structure.unload();
+		}
+		structures.remove(script);
 		
 		info.commands = Commands.unregisterCommands(script);
 		
@@ -223,6 +247,10 @@ public abstract class SkriptEventHandler {
 		for (Trigger t : selfRegisteredTriggers)
 			((SelfRegisteringSkriptEvent) t.getEvent()).unregisterAll();
 		selfRegisteredTriggers.clear();
+		for (File key : structures.keySet())
+			for (Structure structure : structures.get(key))
+				structure.unload();
+		structures.clear();
 	}
 	
 	/**

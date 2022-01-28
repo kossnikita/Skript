@@ -25,6 +25,7 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.function.Function;
 import ch.njol.skript.lang.function.FunctionEvent;
 import ch.njol.skript.lang.function.Functions;
+import ch.njol.skript.lang.function.Signature;
 import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
@@ -35,11 +36,16 @@ public class StructFunction extends PreloadingStructure {
 		Skript.registerPreloadingStructure(StructFunction.class, 30, "function <.+>");
 	}
 
+	@Nullable
+	private Signature<?> signature;
+
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
 		getParser().setCurrentEvent("function", FunctionEvent.class);
 
-		Functions.loadSignature(getParser().getCurrentScript().getFileName(), node);
+		if (getParser().getCurrentScript() == null)
+			throw new IllegalStateException("Current script is null during function loading");
+		signature = Functions.loadSignature(getParser().getCurrentScript().getFileName(), node);
 
 		getParser().deleteCurrentEvent();
 		return true;
@@ -54,6 +60,13 @@ public class StructFunction extends PreloadingStructure {
 			getParser().getScriptInfo().functions++;
 
 		getParser().deleteCurrentEvent();
+	}
+
+	@Override
+	public void unload() {
+		if (signature != null) {
+			Functions.unregisterFunction(signature);
+		}
 	}
 
 	@Override

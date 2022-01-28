@@ -42,6 +42,7 @@ public class StructCommand extends Structure {
 
 	@Nullable
 	private ScriptCommand command;
+	private boolean registered = false;
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
@@ -61,6 +62,12 @@ public class StructCommand extends Structure {
 	}
 
 	@Override
+	public void unload() {
+		if (command != null)
+			Commands.unregister(command);
+	}
+
+	@Override
 	public String toString(@Nullable Event e, boolean debug) {
 		return "command";
 	}
@@ -74,9 +81,10 @@ public class StructCommand extends Structure {
 		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) {
 			Runnable runnable = () -> {
 				for (StructCommand structure : getParser().getLoadedStructures(StructCommand.class)) {
-					ScriptCommand command = structure.command;
-					if (command != null)
-						Commands.registerCommand(command);
+					if (!structure.registered && structure.command != null) {
+						Commands.registerCommand(structure.command);
+						structure.registered = true;
+					}
 				}
 			};
 

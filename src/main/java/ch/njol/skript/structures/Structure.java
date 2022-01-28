@@ -23,10 +23,12 @@ import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.lang.Debuggable;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ParseContext;
+import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.SyntaxElement;
 import ch.njol.skript.lang.SyntaxElementInfo;
+import ch.njol.skript.lang.Trigger;
 import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.log.ParseLogHandler;
 import ch.njol.skript.log.SkriptLogger;
@@ -78,6 +80,11 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 								 Kleenean isDelayed,
 								 ParseResult parseResult,
 								 SectionNode node);
+
+	/**
+	 * Called when this structure is unloaded, similar to {@link SelfRegisteringSkriptEvent#unregister(Trigger)}.
+	 */
+	public void unload() { }
 
 	@Override
 	public String toString() {

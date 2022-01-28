@@ -82,8 +82,6 @@ import java.util.regex.Matcher;
 
 /**
  * The main class for loading, unloading and reloading scripts.
- *
- * @author Peter Güttinger
  */
 public class ScriptLoader {
 	
@@ -97,12 +95,13 @@ public class ScriptLoader {
 	 */
 	static void disableScripts() {
 		SkriptEventHandler.removeAllTriggers();
+		// TODO commands & functions internalized
 		Commands.clearCommands();
 		Functions.clearFunctions();
 	}
 	
 	/**
-	 * A class for keeping track of a the general content of a script:
+	 * A class for keeping track of the general content of a script:
 	 * <ul>
 	 *     <li>The amount of files</li>
 	 *     <li>The amount of triggers</li>
@@ -174,6 +173,7 @@ public class ScriptLoader {
 	 * Command names by script names. Used to figure out when commands need
 	 * to be re-sent to clients on MC 1.13+.
 	 */
+	// TODO commands internalized
 	private static final Map<String, Set<String>> commandNames = new HashMap<>();
 	
 	/**
@@ -463,14 +463,15 @@ public class ScriptLoader {
 					for (File script : oldLoadedFiles) {
 						if (script == null)
 							throw new NullPointerException();
-						
+
+						// TODO functions internalized
 						// Use internal unload method which does not call validateFunctions()
 						unloadScript_(script);
 						String name = Skript.getInstance().getDataFolder().toPath().toAbsolutePath()
 							.resolve(Skript.SCRIPTSFOLDER).relativize(script.toPath()).toString();
 						assert name != null;
-						Functions.clearFunctions(name);
 					}
+					// TODO functions internalized
 					Functions.validateFunctions(); // Manually validate functions
 				}
 				
@@ -495,6 +496,7 @@ public class ScriptLoader {
 	 * @return Info on the loaded scripts.
 	 */
 	public static CompletableFuture<ScriptInfo> loadScripts(List<Config> configs, OpenCloseable openCloseable) {
+		// TODO commands internalized
 		AtomicBoolean syncCommands = new AtomicBoolean();
 
 		callPreScriptLoadEvent(configs);
@@ -525,7 +527,7 @@ public class ScriptLoader {
 		return CompletableFuture.allOf(scriptInfoFutures.toArray(new CompletableFuture[0]))
 			.thenApply(unused -> {
 				SkriptEventHandler.registerBukkitEvents();
-				
+
 				// After we've loaded everything, refresh commands their names changed
 				if (syncCommands.get()) {
 					if (CommandReloader.syncCommands(Bukkit.getServer()))
@@ -627,9 +629,11 @@ public class ScriptLoader {
 						structure = Structure.parse(event, node, "can't understand this event: '" + node.getKey() + "'");
 					}
 
-					if (structure != null) {
-						getParser().getLoadedStructures().add(structure);
-					}
+					if (structure == null)
+						continue;
+
+					SkriptEventHandler.addStructure(structure);
+					getParser().getLoadedStructures().add(structure);
 
 					scriptInfo.triggers++;
 				}
@@ -732,6 +736,7 @@ public class ScriptLoader {
 	}
 	
 	/**
+	 * // TODO functions internalized
 	 * Loads structure of given script, currently only for functions. Must be called before
 	 * actually loading that script.
 	 * @param f Script file.
@@ -757,6 +762,7 @@ public class ScriptLoader {
 	}
 	
 	/**
+	 * // TODO functions internalized
 	 * Loads structure of given script, currently only for functions. Must be called before
 	 * actually loading that script.
 	 * @param source Source input stream.
@@ -807,6 +813,7 @@ public class ScriptLoader {
 	 */
 	public static ScriptInfo unloadScript(File script) {
 		ScriptInfo r = unloadScript_(script);
+		// TODO functions internalized
 		Functions.validateFunctions();
 		return r;
 	}
@@ -820,14 +827,12 @@ public class ScriptLoader {
 			
 			loadedFiles.remove(script); // We just unloaded it, so...
 			disabledFiles.add(new File(script.getParentFile(), "-" + script.getName()));
-			
-			// Clear functions, DO NOT validate them yet
+
 			// If unloading, our caller will do this immediately after we return
 			// However, if reloading, new version of this script is first loaded
 			String name = Skript.getInstance().getDataFolder().toPath().toAbsolutePath()
 					.resolve(Skript.SCRIPTSFOLDER).relativize(script.toPath().toAbsolutePath()).toString();
 			assert name != null;
-			Functions.clearFunctions(name);
 			
 			return info; // Return how much we unloaded
 		}
@@ -849,6 +854,7 @@ public class ScriptLoader {
 			unloadScript_(script);
 		}
 		Config config = loadStructure(script);
+		// TODO functions internalized
 		Functions.validateFunctions();
 		if (config == null)
 			return CompletableFuture.completedFuture(new ScriptInfo());
@@ -865,6 +871,7 @@ public class ScriptLoader {
 			unloadScripts_(folder);
 		}
 		List<Config> configs = loadStructures(folder);
+		// TODO functions internalized
 		Functions.validateFunctions();
 		return loadScripts(configs, openCloseable);
 	}
