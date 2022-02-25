@@ -23,7 +23,7 @@ import ch.njol.skript.classes.ClassInfo;
 import ch.njol.skript.config.EntryNode;
 import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.ParseContext;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.log.ParseLogHandler;
@@ -31,7 +31,6 @@ import ch.njol.skript.log.SkriptLogger;
 import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.variables.Variables;
-import ch.njol.util.Kleenean;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
@@ -40,12 +39,15 @@ import java.util.Locale;
 
 public class StructVariables extends Structure {
 
+	public static final Priority PRIORITY = new Priority(10);
+
 	static {
 		Skript.registerStructure(StructVariables.class, "variables");
 	}
 
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
+	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
+		// TODO split this implementation over the right methods below
 		// TODO allow to make these override existing variables
 		node.convertToEntries(0, "=");
 		for (Node n : node) {
@@ -53,10 +55,13 @@ public class StructVariables extends Structure {
 				Skript.error("Invalid line in variables section");
 				continue;
 			}
+
 			String name = n.getKey().toLowerCase(Locale.ENGLISH);
 			if (name.startsWith("{") && name.endsWith("}"))
 				name = "" + name.substring(1, name.length() - 1);
+
 			String var = name;
+
 			name = StringUtils.replaceAll(name, "%(.+)?%", m -> {
 				if (m.group(1).contains("{") || m.group(1).contains("}") || m.group(1).contains("%")) {
 					Skript.error("'" + var + "' is not a valid name for a default variable");
@@ -69,14 +74,17 @@ public class StructVariables extends Structure {
 				}
 				return "<" + ci.getCodeName() + ">";
 			});
+
 			if (name == null) {
 				continue;
 			} else if (name.contains("%")) {
 				Skript.error("Invalid use of percent signs in variable name");
 				continue;
 			}
+
 			if (Variables.getVariable(name, null, false) != null)
 				continue;
+
 			Object o;
 			ParseLogHandler log = SkriptLogger.startParseLogHandler();
 			try {
@@ -89,6 +97,7 @@ public class StructVariables extends Structure {
 			} finally {
 				log.stop();
 			}
+
 			ClassInfo<?> ci = Classes.getSuperClassInfo(o.getClass());
 			if (ci.getSerializer() == null) {
 				Skript.error("Can't save '" + ((EntryNode) n).getValue() + "' in a variable");
@@ -105,9 +114,30 @@ public class StructVariables extends Structure {
 					continue;
 				}
 			}
+
 			Variables.setVariable(name, o, null, false);
 		}
 		return true;
+	}
+
+	@Override
+	public void preload() {
+
+	}
+
+	@Override
+	public void load() {
+
+	}
+
+	@Override
+	public void unload() {
+
+	}
+
+	@Override
+	public Priority getPriority() {
+		return PRIORITY;
 	}
 
 	@Override

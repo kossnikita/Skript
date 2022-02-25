@@ -22,6 +22,7 @@ import ch.njol.skript.Skript;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.lang.Debuggable;
 import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.ParseContext;
 import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
 import ch.njol.skript.lang.SkriptParser;
@@ -35,56 +36,61 @@ import ch.njol.skript.log.SkriptLogger;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.iterator.ConsumingIterator;
 import org.eclipse.jdt.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
-/**
- * A {@link Structure} should be used instead of an event, in the following scenarios:
- * <ul>
- *     <li>
- *         The {@link SectionNode} does not just contain code
- *         <ul>
- *             <li>
- *                 For example, custom commands can contain other things, such as a permission or cooldown message.
- *                 Options are also applicable here, since they don't contain code at all.
- *             </li>
- *         </ul>
- *     </li>
- *     <li>
- *         The section should be (partially) read before <i>any</i> other code is loaded.
- *         In this case, a {@link PreloadingStructure} should be used.
- *         <ul>
- *             <li>
- *                 Functions use this to make sure they can be called from even before their definition in the script file.
- *             </li>
- *         </ul>
- *     </li>
- * </ul>
- *
- * @see Skript#registerStructure(Class, String...)
- */
+// TODO javadocs (everywhere)
 public abstract class Structure implements SyntaxElement, Debuggable {
+
+	// TODO priorities
+	public static class Priority implements Comparable<Priority> {
+		private final int priority;
+
+		public Priority(int priority) {
+			this.priority = priority;
+		}
+
+		public int getPriority() {
+			return priority;
+		}
+
+		@Override
+		public int compareTo(@NotNull Structure.Priority o) {
+			return Integer.compare(this.priority, o.priority);
+		}
+	}
 
 	@Override
 	public final boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
 		StructureData structureData = getParser().getData(StructureData.class);
-		return init(exprs, matchedPattern, isDelayed, parseResult, structureData.sectionNode);
+
+		Literal<?>[] literals = Arrays.copyOf(exprs, exprs.length, Literal[].class);
+		ParseResult newParseResult = new ParseResult(parseResult.expr, literals);
+
+		return init(literals, matchedPattern, newParseResult, structureData.sectionNode);
 	}
 
 	/**
 	 * This method is the same as {@link SyntaxElement#init(Expression[], int, Kleenean, ParseResult)}, except
 	 * the structure's {@link SectionNode} is also passed to this method.
 	 */
-	public abstract boolean init(Expression<?>[] exprs,
+	public abstract boolean init(Literal<?>[] args,
 								 int matchedPattern,
-								 Kleenean isDelayed,
 								 ParseResult parseResult,
 								 SectionNode node);
+
+	public abstract void preload();
+
+	public abstract void load();
 
 	/**
 	 * Called when this structure is unloaded, similar to {@link SelfRegisteringSkriptEvent#unregister(Trigger)}.
 	 */
-	public void unload() { }
+	public abstract void unload();
+
+	public abstract Priority getPriority();
 
 	@Override
 	public String toString() {
@@ -118,23 +124,23 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 		structureData.sectionNode = sectionNode;
 	}
 
-	@Nullable
-	protected static SyntaxElementInfo<? extends Structure> getSyntaxElementInfo() {
-		return ParserInstance.get().getData(StructureData.class).syntaxElementInfo;
-	}
-
 	static {
 		ParserInstance.registerData(StructureData.class, StructureData::new);
 	}
 
 	@SuppressWarnings("NotNullFieldNotInitialized")
-	private static class StructureData extends ParserInstance.Data {
+	public static class StructureData extends ParserInstance.Data {
 		private SectionNode sectionNode;
 		@Nullable
 		private SyntaxElementInfo<? extends Structure> syntaxElementInfo;
 
 		public StructureData(ParserInstance parserInstance) {
 			super(parserInstance);
+		}
+
+		@Nullable
+		public SyntaxElementInfo<? extends Structure> getSyntaxElementInfo() {
+			return syntaxElementInfo;
 		}
 	}
 

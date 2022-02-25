@@ -25,7 +25,6 @@ import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.config.SimpleNode;
 import ch.njol.skript.events.bukkit.PreScriptLoadEvent;
-import ch.njol.skript.lang.PreloadingStructureInfo;
 import ch.njol.skript.lang.Section;
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.Statement;
@@ -40,7 +39,6 @@ import ch.njol.skript.log.LogEntry;
 import ch.njol.skript.log.RetainingLogHandler;
 import ch.njol.skript.log.SkriptLogger;
 import ch.njol.skript.sections.SecLoop;
-import ch.njol.skript.structures.PreloadingStructure;
 import ch.njol.skript.structures.Structure;
 import ch.njol.skript.util.Date;
 import ch.njol.skript.util.ExceptionUtils;
@@ -64,12 +62,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -499,17 +497,24 @@ public class ScriptLoader {
 		// TODO commands internalized
 		AtomicBoolean syncCommands = new AtomicBoolean();
 
-		callPreScriptLoadEvent(configs);
+		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
 		
 		ScriptInfo scriptInfo = new ScriptInfo();
-		
+
+		List<Structure> structures = new ArrayList<>();
+
 		List<CompletableFuture<Void>> scriptInfoFutures = new ArrayList<>();
 		for (Config config : configs) {
 			if (config == null)
 				throw new NullPointerException();
 			
 			CompletableFuture<Void> future = makeFuture(() -> {
+				List<Structure> loadedStructures = getParser().getLoadedStructures();
+				loadedStructures.clear();
+
 				ScriptInfo info = loadScript(config);
+
+				structures.addAll(loadedStructures);
 				
 				// Check if commands have been changed and a re-send is needed
 				if (!info.commandNames.equals(commandNames.get(config.getFileName()))) {
@@ -528,6 +533,15 @@ public class ScriptLoader {
 			.thenApply(unused -> {
 				SkriptEventHandler.registerBukkitEvents();
 
+				structures.stream()
+						.sorted(Comparator.comparing(Structure::getPriority))
+						.forEach(Structure::preload);
+
+				for (Structure structure : structures) {
+					// TODO if code loads here, log handlers and all don't work properly
+					structure.load();
+				}
+
 				// After we've loaded everything, refresh commands their names changed
 				if (syncCommands.get()) {
 					if (CommandReloader.syncCommands(Bukkit.getServer()))
@@ -540,41 +554,6 @@ public class ScriptLoader {
 				
 				return scriptInfo;
 			});
-	}
-
-	private static final WeakHashMap<SectionNode, PreloadingStructure> preloadedStructures = new WeakHashMap<>();
-
-	private static void callPreScriptLoadEvent(List<Config> configs) {
-		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
-
-		List<Integer> priorities = new ArrayList<>();
-		for (PreloadingStructureInfo<?> preloadingStructureInfo : Skript.getPreloadingStructures()) {
-			priorities.add(preloadingStructureInfo.getPriority());
-		}
-		priorities.sort(Integer::compare);
-
-		// TODO properly handle options in here
-		for (int priority : priorities) {
-			// Preloading structure parsing
-			for (Config config : configs) {
-				getParser().setCurrentScript(config);
-				for (Node node : config.getMainNode()) {
-					if (!(node instanceof SectionNode))
-						continue;
-
-					SectionNode sectionNode = (SectionNode) node;
-					String key = sectionNode.getKey();
-
-					if (key == null || !SkriptParser.validateLine(key))
-						continue;
-
-					PreloadingStructure preloadingStructure = PreloadingStructure.parse(key, sectionNode, priority);
-					if (preloadingStructure != null)
-						preloadedStructures.put(sectionNode, preloadingStructure);
-				}
-				getParser().setCurrentScript(null);
-			}
-		}
 	}
 
 	/**
@@ -593,6 +572,8 @@ public class ScriptLoader {
 		ScriptInfo scriptInfo = new ScriptInfo();
 		getParser().setScriptInfo(scriptInfo);
 		scriptInfo.files = 1; // Loading one script
+
+		List<Structure> structures = getParser().getLoadedStructures();
 		
 		try {
 			if (SkriptConfig.keepConfigsLoaded.value())
@@ -600,6 +581,8 @@ public class ScriptLoader {
 			
 			getParser().getCurrentOptions().clear();
 			getParser().setCurrentScript(config);
+
+			structures.clear();
 			
 			try (CountingLogHandler ignored = new CountingLogHandler(SkriptLogger.SEVERE).start()) {
 				for (Node cnode : config.getMainNode()) {
@@ -621,19 +604,13 @@ public class ScriptLoader {
 
 					event = replaceOptions(event);
 
-					Structure structure = preloadedStructures.remove(node);
-					if (structure != null) {
-						PreloadingStructure preloadingStructure = (PreloadingStructure) structure;
-						preloadingStructure.init(node);
-					} else {
-						structure = Structure.parse(event, node, "can't understand this event: '" + node.getKey() + "'");
-					}
+					Structure structure = Structure.parse(event, node, "can't understand this event: '" + node.getKey() + "'");
 
 					if (structure == null)
 						continue;
 
 					SkriptEventHandler.addStructure(structure);
-					getParser().getLoadedStructures().add(structure);
+					structures.add(structure);
 
 					scriptInfo.triggers++;
 				}
@@ -642,7 +619,7 @@ public class ScriptLoader {
 					Skript.info("loaded " + scriptInfo.triggers + " trigger" + (scriptInfo.triggers == 1 ? "" : "s")+ " and " + scriptInfo.commands + " command" + (scriptInfo.commands == 1 ? "" : "s") + " from '" + config.getFileName() + "'");
 				
 				getParser().setCurrentScript(null);
-				getParser().getLoadedStructures().clear();
+				structures.clear();
 			}
 		} catch (Exception e) {
 			//noinspection ThrowableNotThrown

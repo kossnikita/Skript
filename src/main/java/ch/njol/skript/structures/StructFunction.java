@@ -20,44 +20,44 @@ package ch.njol.skript.structures;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.function.Function;
 import ch.njol.skript.lang.function.FunctionEvent;
 import ch.njol.skript.lang.function.Functions;
 import ch.njol.skript.lang.function.Signature;
-import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 
-public class StructFunction extends PreloadingStructure {
+public class StructFunction extends Structure {
+
+	public static final Priority PRIORITY = new Priority(30);
 
 	static {
-		Skript.registerPreloadingStructure(StructFunction.class, 30, "function <.+>");
+		Skript.registerStructure(StructFunction.class, "function <.+>");
 	}
 
+	private SectionNode node;
 	@Nullable
 	private Signature<?> signature;
 
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
+	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
+		this.node = node;
+		return true;
+	}
+
+	@Override
+	public void preload() {
+
+	}
+
+	@Override
+	public void load() {
 		getParser().setCurrentEvent("function", FunctionEvent.class);
 
 		if (getParser().getCurrentScript() == null)
 			throw new IllegalStateException("Current script is null during function loading");
 		signature = Functions.loadSignature(getParser().getCurrentScript().getFileName(), node);
-
-		getParser().deleteCurrentEvent();
-		return true;
-	}
-
-	@Override
-	public void init(SectionNode node) {
-		getParser().setCurrentEvent("function", FunctionEvent.class);
-
-		Function<?> function = Functions.loadFunction(node);
-		if (function != null)
-			getParser().getScriptInfo().functions++;
 
 		getParser().deleteCurrentEvent();
 	}
@@ -67,6 +67,11 @@ public class StructFunction extends PreloadingStructure {
 		if (signature != null) {
 			Functions.unregisterFunction(signature);
 		}
+	}
+
+	@Override
+	public Priority getPriority() {
+		return PRIORITY;
 	}
 
 	@Override

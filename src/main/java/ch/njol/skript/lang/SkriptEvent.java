@@ -29,7 +29,6 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.structures.Structure;
 import ch.njol.skript.util.Task;
-import ch.njol.util.Kleenean;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
@@ -39,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 
 /**
@@ -54,15 +52,19 @@ import java.util.concurrent.Callable;
  */
 public abstract class SkriptEvent extends Structure implements SyntaxElement, Debuggable {
 
+	public static final Priority PRIORITY = new Priority(5);
+
 	@Nullable
-	EventPriority eventPriority;
+	protected EventPriority eventPriority;
+
+	@SuppressWarnings("NotNullFieldNotInitialized")
+	private String expr;
+	@SuppressWarnings("NotNullFieldNotInitialized")
+	private SectionNode node;
 
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
-		SyntaxElementInfo<? extends Structure> syntaxElementInfo = getSyntaxElementInfo();
-		if (!(syntaxElementInfo instanceof SkriptEventInfo))
-			throw new IllegalStateException();
-		SkriptEventInfo<?> skriptEventInfo = (SkriptEventInfo<?>) syntaxElementInfo;
+	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
+		this.node = node;
 
 		String expr = parseResult.expr;
 		if (StringUtils.startsWithIgnoreCase(expr, "on "))
@@ -70,7 +72,7 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 
 		String[] split = expr.split(" with priority ");
 		if (split.length != 1) {
-			if (this instanceof SelfRegisteringSkriptEvent) {
+			if (!isEventPrioritySupported()) {
 				Skript.error("This event doesn't support event priority");
 				return false;
 			}
@@ -87,25 +89,42 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 			eventPriority = null;
 		}
 
-		Literal<?>[] literals = Arrays.copyOf(exprs, exprs.length, Literal[].class);
-		ParseResult newParseResult = new ParseResult(expr, literals);
-		newParseResult.regexes.addAll(parseResult.regexes);
-		newParseResult.mark = parseResult.mark;
+		this.expr = parseResult.expr = expr;
 
-		// Initiate
-		if (!init(literals, matchedPattern, newParseResult))
-			return false;
+		return init(args, matchedPattern, parseResult);
+	}
 
+	/**
+	 * called just after the constructor
+	 */
+	public abstract boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult);
+
+	@Override
+	public void preload() {
+
+	}
+
+	@Override
+	public void load() {
 		if (!shouldLoadEvent())
-			return true;
+			return;
 
 		if (Skript.debug() || node.debug())
 			Skript.debug(expr + " (" + this + "):");
 
+		SyntaxElementInfo<? extends Structure> syntaxElementInfo = getParser().getData(StructureData.class).getSyntaxElementInfo();
+		if (!(syntaxElementInfo instanceof SkriptEventInfo))
+			throw new IllegalStateException();
+		SkriptEventInfo<?> skriptEventInfo = (SkriptEventInfo<?>) syntaxElementInfo;
+
 		List<ParsedEventData> events = getParser().getData(EventData.class).events;
 
+		Class<? extends Event>[] eventClasses = getEventClasses();
+		if (eventClasses == null)
+			eventClasses = skriptEventInfo.events;
+
 		try {
-			getParser().setCurrentEvent(skriptEventInfo.getName().toLowerCase(Locale.ENGLISH), skriptEventInfo.events);
+			getParser().setCurrentEvent(skriptEventInfo.getName().toLowerCase(Locale.ENGLISH), eventClasses);
 			getParser().setCurrentSkriptEvent(this);
 
 			events.add(new ParsedEventData(skriptEventInfo, this, expr, node, ScriptLoader.loadItems(node)));
@@ -113,17 +132,17 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 			getParser().deleteCurrentEvent();
 			getParser().deleteCurrentSkriptEvent();
 		}
-
-		if (this instanceof SelfRegisteringSkriptEvent)
-			((SelfRegisteringSkriptEvent) this).afterParse(Objects.requireNonNull(getParser().getCurrentScript()));
-
-		return true;
 	}
 
-	/**
-	 * called just after the constructor
-	 */
-	public abstract boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult);
+	@Override
+	public void unload() {
+
+	}
+
+	@Override
+	public Priority getPriority() {
+		return PRIORITY;
+	}
 
 	/**
 	 * Checks whether the given Event applies, e.g. the leftclick event is only part of the PlayerInteractEvent, and this checks whether the player leftclicked or not. This method

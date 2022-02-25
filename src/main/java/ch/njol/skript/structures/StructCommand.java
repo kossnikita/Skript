@@ -23,42 +23,53 @@ import ch.njol.skript.Skript;
 import ch.njol.skript.command.CommandEvent;
 import ch.njol.skript.command.Commands;
 import ch.njol.skript.command.ScriptCommand;
-import ch.njol.skript.config.Config;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.parser.ParserInstance;
-import ch.njol.util.Kleenean;
-import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 
 public class StructCommand extends Structure {
 
+	public static final Priority PRIORITY = new Priority(10);
+
 	static {
 		Skript.registerStructure(StructCommand.class, "command <.+>");
-		ParserInstance.registerData(CommandData.class, CommandData::new);
 	}
 
+	private SectionNode sectionNode;
 	@Nullable
 	private ScriptCommand command;
-	private boolean registered = false;
 
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
+	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
+		this.sectionNode = node;
+
+		return true;
+	}
+
+	@Override
+	public void preload() {
+
+	}
+
+	@Override
+	public void load() {
 		ScriptInfo scriptInfo = getParser().getScriptInfo();
 
 		getParser().setCurrentEvent("command", CommandEvent.class);
 
-		command = Commands.loadCommand(node, false);
+		// TODO split
+		command = Commands.loadCommand(sectionNode, false);
+
+		getParser().deleteCurrentEvent();
+
 		if (command != null) {
 			scriptInfo.commandNames.add(command.getName()); // For tab completion
 			scriptInfo.commands++;
 		}
 
-		getParser().deleteCurrentEvent();
-
-		return true;
+		Commands.registerCommand(command);
 	}
 
 	@Override
@@ -68,31 +79,13 @@ public class StructCommand extends Structure {
 	}
 
 	@Override
-	public String toString(@Nullable Event e, boolean debug) {
-		return "command";
+	public Priority getPriority() {
+		return PRIORITY;
 	}
 
-	public static class CommandData extends ParserInstance.Data {
-		public CommandData(ParserInstance parserInstance) {
-			super(parserInstance);
-		}
-
-		@Override
-		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) {
-			Runnable runnable = () -> {
-				for (StructCommand structure : getParser().getLoadedStructures(StructCommand.class)) {
-					if (!structure.registered && structure.command != null) {
-						Commands.registerCommand(structure.command);
-						structure.registered = true;
-					}
-				}
-			};
-
-			if (Bukkit.isPrimaryThread())
-				runnable.run();
-			else
-				Bukkit.getScheduler().runTask(Skript.getInstance(), runnable);
-		}
+	@Override
+	public String toString(@Nullable Event e, boolean debug) {
+		return "command ";
 	}
 
 }

@@ -46,7 +46,6 @@ import ch.njol.skript.lang.Section;
 import ch.njol.skript.lang.SkriptEvent;
 import ch.njol.skript.lang.SkriptEventInfo;
 import ch.njol.skript.lang.Statement;
-import ch.njol.skript.lang.PreloadingStructureInfo;
 import ch.njol.skript.lang.SyntaxElementInfo;
 import ch.njol.skript.lang.Trigger;
 import ch.njol.skript.lang.TriggerItem;
@@ -65,7 +64,6 @@ import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.registrations.Comparators;
 import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.registrations.EventValues;
-import ch.njol.skript.structures.PreloadingStructure;
 import ch.njol.skript.structures.Structure;
 import ch.njol.skript.tests.runner.SkriptTestEvent;
 import ch.njol.skript.tests.runner.TestMode;
@@ -89,7 +87,6 @@ import ch.njol.util.Kleenean;
 import ch.njol.util.NullableChecker;
 import ch.njol.util.OpenCloseable;
 import ch.njol.util.StringUtils;
-import ch.njol.util.coll.CollectionUtils;
 import ch.njol.util.coll.iterator.CheckedIterator;
 import ch.njol.util.coll.iterator.EnumerationIterable;
 import com.google.gson.Gson;
@@ -1387,7 +1384,6 @@ public final class Skript extends JavaPlugin implements Listener {
 	// ================ EVENTS ================
 
 	private static final List<SyntaxElementInfo<? extends Structure>> normalStructures = new ArrayList<>(10);
-	private static final List<PreloadingStructureInfo<? extends PreloadingStructure>> preloadingStructures = new ArrayList<>(10);
 	
 	/**
 	 * Registers an event.
@@ -1427,23 +1423,10 @@ public final class Skript extends JavaPlugin implements Listener {
 	}
 
 	public static <E extends Structure> void registerStructure(Class<E> c, String... patterns) {
-		if (PreloadingStructure.class.isAssignableFrom(c))
-			throw new IllegalArgumentException("Attempted to register a preloading structure using registerStructure instead of registerPreloadingStructure");
-
 		checkAcceptRegistrations();
 		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
 		SyntaxElementInfo<E> structureInfo = new SyntaxElementInfo<>(patterns, c, originClassPath);
 		normalStructures.add(structureInfo);
-	}
-
-	public static <E extends PreloadingStructure> void registerPreloadingStructure(Class<E> c, int priority, String... patterns) {
-		if (!PreloadingStructure.class.isAssignableFrom(c))
-			throw new IllegalArgumentException("Attempted to register a normal structure using registerPreloadingStructure instead of registerStructure");
-
-		checkAcceptRegistrations();
-		String originClassPath = Thread.currentThread().getStackTrace()[2].getClassName();
-		PreloadingStructureInfo<E> preloadingStructureInfo = new PreloadingStructureInfo<>(patterns, c, originClassPath, priority);
-		preloadingStructures.add(preloadingStructureInfo);
 	}
 
 	/**
@@ -1458,10 +1441,6 @@ public final class Skript extends JavaPlugin implements Listener {
 
 	public static List<SyntaxElementInfo<? extends Structure>> getNormalStructures() {
 		return normalStructures;
-	}
-
-	public static List<PreloadingStructureInfo<? extends PreloadingStructure>> getPreloadingStructures() {
-		return preloadingStructures;
 	}
 
 	// ================ COMMANDS ================

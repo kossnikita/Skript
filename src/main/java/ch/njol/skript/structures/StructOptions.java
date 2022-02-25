@@ -22,40 +22,66 @@ import ch.njol.skript.Skript;
 import ch.njol.skript.config.EntryNode;
 import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 
-public class StructOptions extends PreloadingStructure {
+import java.util.HashMap;
+import java.util.Map;
+
+public class StructOptions extends Structure {
+
+	public static final Priority PRIORITY = new Priority(10);
 
 	static {
-		Skript.registerPreloadingStructure(StructOptions.class, 10, "options");
+		Skript.registerStructure(StructOptions.class, "options");
 	}
 
+	private final Map<String, String> options = new HashMap<>();
+
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult, SectionNode node) {
+	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
 		node.convertToEntries(-1);
-		registerOptions(node, "", true);
+		loadOptions(node, "");
+		registerOptions();
 		return true;
 	}
 
 	@Override
-	public void init(SectionNode node) {
-		registerOptions(node, "", false);
+	public void preload() {
+		registerOptions();
 	}
 
-	private void registerOptions(SectionNode sectionNode, String prefix, boolean error) {
+	@Override
+	public void load() {
+		registerOptions();
+	}
+
+	@Override
+	public void unload() {
+
+	}
+
+	private void loadOptions(SectionNode sectionNode, String prefix) {
 		for (Node n : sectionNode) {
 			if (n instanceof EntryNode) {
-				getParser().getCurrentOptions().put(prefix + n.getKey(), ((EntryNode) n).getValue());
+				options.put(prefix + n.getKey(), ((EntryNode) n).getValue());
 			} else if (n instanceof SectionNode) {
-				registerOptions((SectionNode) n, prefix + n.getKey() + ".", error);
-			} else if (error) {
+				loadOptions((SectionNode) n, prefix + n.getKey() + ".");
+			} else {
 				Skript.error("Invalid line in options");
 			}
 		}
+	}
+
+	private void registerOptions() {
+		getParser().getCurrentOptions().putAll(options);
+	}
+
+	@Override
+	public Priority getPriority() {
+		return PRIORITY;
 	}
 
 	@Override
