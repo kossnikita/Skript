@@ -44,11 +44,11 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-// TODO javadocs (everywhere)
-// TODO move to ch.njol.skript.lang
+// TODO STRUCTURE javadocs (everywhere)
+// TODO STRUCTURE move to ch.njol.skript.lang
 public abstract class Structure implements SyntaxElement, Debuggable {
 
-	// TODO priorities
+	// TODO STRUCTURE priorities
 	public static class Priority implements Comparable<Priority> {
 		private final int priority;
 

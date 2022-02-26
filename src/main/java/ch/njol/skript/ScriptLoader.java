@@ -93,7 +93,7 @@ public class ScriptLoader {
 	 */
 	static void disableScripts() {
 		SkriptEventHandler.removeAllTriggers();
-		// TODO commands & functions internalized
+		// TODO STRUCTURE commands & functions internalized
 		Commands.clearCommands();
 		Functions.clearFunctions();
 	}
@@ -469,7 +469,7 @@ public class ScriptLoader {
 							.resolve(Skript.SCRIPTSFOLDER).relativize(script.toPath()).toString();
 						assert name != null;
 					}
-					// TODO functions internalized
+					// TODO STRUCTURE functions internalized
 					Functions.validateFunctions(); // Manually validate functions
 				}
 				
@@ -494,7 +494,7 @@ public class ScriptLoader {
 	 * @return Info on the loaded scripts.
 	 */
 	public static CompletableFuture<ScriptInfo> loadScripts(List<Config> configs, OpenCloseable openCloseable) {
-		// TODO commands internalized
+		// TODO STRUCTURE commands internalized
 		AtomicBoolean syncCommands = new AtomicBoolean();
 
 		Bukkit.getPluginManager().callEvent(new PreScriptLoadEvent(configs));
@@ -545,7 +545,7 @@ public class ScriptLoader {
 					}
 
 					// After we've loaded everything, refresh commands their names changed
-					// TODO commands internalized
+					// TODO STRUCTURE commands internalized
 					if (syncCommands.get()) {
 						if (CommandReloader.syncCommands(Bukkit.getServer()))
 							Skript.debug("Commands synced to clients");
@@ -555,7 +555,7 @@ public class ScriptLoader {
 						Skript.debug("Commands unchanged, not syncing them to clients");
 					}
 
-					// TODO events internalized
+					// TODO STRUCTURE events internalized
 					SkriptEventHandler.registerBukkitEvents();
 
 					return scriptInfo;
@@ -722,7 +722,7 @@ public class ScriptLoader {
 	}
 	
 	/**
-	 * // TODO functions internalized
+	 * // TODO STRUCTURE functions internalized
 	 * Loads structure of given script, currently only for functions. Must be called before
 	 * actually loading that script.
 	 * @param f Script file.
@@ -748,7 +748,7 @@ public class ScriptLoader {
 	}
 	
 	/**
-	 * // TODO functions internalized
+	 * // TODO STRUCTURE functions internalized
 	 * Loads structure of given script, currently only for functions. Must be called before
 	 * actually loading that script.
 	 * @param source Source input stream.
@@ -799,7 +799,7 @@ public class ScriptLoader {
 	 */
 	public static ScriptInfo unloadScript(File script) {
 		ScriptInfo r = unloadScript_(script);
-		// TODO functions internalized
+		// TODO STRUCTURE functions internalized
 		Functions.validateFunctions();
 		return r;
 	}
@@ -840,7 +840,7 @@ public class ScriptLoader {
 			unloadScript_(script);
 		}
 		Config config = loadStructure(script);
-		// TODO functions internalized
+		// TODO STRUCTURE functions internalized
 		Functions.validateFunctions();
 		if (config == null)
 			return CompletableFuture.completedFuture(new ScriptInfo());
@@ -857,7 +857,7 @@ public class ScriptLoader {
 			unloadScripts_(folder);
 		}
 		List<Config> configs = loadStructures(folder);
-		// TODO functions internalized
+		// TODO STRUCTURE functions internalized
 		Functions.validateFunctions();
 		return loadScripts(configs, openCloseable);
 	}

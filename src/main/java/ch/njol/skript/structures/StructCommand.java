@@ -59,7 +59,7 @@ public class StructCommand extends Structure {
 
 		getParser().setCurrentEvent("command", CommandEvent.class);
 
-		// TODO split
+		// TODO STRUCTURE split
 		command = Commands.loadCommand(sectionNode, false);
 
 		getParser().deleteCurrentEvent();

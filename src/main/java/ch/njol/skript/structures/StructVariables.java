@@ -47,7 +47,7 @@ public class StructVariables extends Structure {
 
 	@Override
 	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
-		// TODO split this implementation over the right methods below
+		// TODO STRUCTURE split this implementation over the right methods below
 		// TODO allow to make these override existing variables
 		node.convertToEntries(0, "=");
 		for (Node n : node) {
