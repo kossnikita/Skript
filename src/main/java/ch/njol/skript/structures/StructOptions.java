@@ -24,6 +24,7 @@ import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.lang.Structure;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 

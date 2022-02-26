@@ -25,7 +25,6 @@ import ch.njol.skript.SkriptEventHandler;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.events.EvtClick;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.structures.Structure;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;

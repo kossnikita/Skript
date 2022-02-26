@@ -64,7 +64,7 @@ import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.registrations.Comparators;
 import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.registrations.EventValues;
-import ch.njol.skript.structures.Structure;
+import ch.njol.skript.lang.Structure;
 import ch.njol.skript.tests.runner.SkriptTestEvent;
 import ch.njol.skript.tests.runner.TestMode;
 import ch.njol.skript.tests.runner.TestTracker;

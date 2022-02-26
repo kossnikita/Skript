@@ -16,21 +16,12 @@
  *
  * Copyright Peter Güttinger, SkriptLang team and contributors
  */
-package ch.njol.skript.structures;
+package ch.njol.skript.lang;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.config.Config;
 import ch.njol.skript.config.SectionNode;
-import ch.njol.skript.lang.Debuggable;
-import ch.njol.skript.lang.Expression;
-import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.ParseContext;
-import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
-import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.SyntaxElement;
-import ch.njol.skript.lang.SyntaxElementInfo;
-import ch.njol.skript.lang.Trigger;
 import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.log.ParseLogHandler;
 import ch.njol.skript.log.SkriptLogger;
@@ -45,7 +36,6 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 // TODO STRUCTURE javadocs (everywhere)
-// TODO STRUCTURE move to ch.njol.skript.lang
 public abstract class Structure implements SyntaxElement, Debuggable {
 
 	// TODO STRUCTURE priorities
