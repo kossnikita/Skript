@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 // TODO STRUCTURE javadocs (everywhere)
+// TODO STRUCTURE add Structures to docs
 public abstract class Structure implements SyntaxElement, Debuggable {
 
 	// TODO STRUCTURE priorities
