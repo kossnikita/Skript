@@ -531,28 +531,39 @@ public class ScriptLoader {
 		
 		return CompletableFuture.allOf(scriptInfoFutures.toArray(new CompletableFuture[0]))
 			.thenApply(unused -> {
-				SkriptEventHandler.registerBukkitEvents();
-
-				structures.stream()
+				try {
+					structures.stream()
 						.sorted(Comparator.comparing(Structure::getPriority))
-						.forEach(Structure::preload);
+						.forEach(structure -> structure.runWithScript(Structure::preload));
 
-				for (Structure structure : structures) {
-					// TODO if code loads here, log handlers and all don't work properly
-					structure.load();
-				}
+					for (Structure structure : structures) {
+						structure.runWithScript(Structure::load);
+					}
 
-				// After we've loaded everything, refresh commands their names changed
-				if (syncCommands.get()) {
-					if (CommandReloader.syncCommands(Bukkit.getServer()))
-						Skript.debug("Commands synced to clients");
-					else
-						Skript.debug("Commands changed but not synced to clients (normal on 1.12 and older)");
-				} else {
-					Skript.debug("Commands unchanged, not syncing them to clients");
+					for (Structure structure : structures) {
+						structure.runWithScript(Structure::afterLoad);
+					}
+
+					// After we've loaded everything, refresh commands their names changed
+					// TODO commands internalized
+					if (syncCommands.get()) {
+						if (CommandReloader.syncCommands(Bukkit.getServer()))
+							Skript.debug("Commands synced to clients");
+						else
+							Skript.debug("Commands changed but not synced to clients (normal on 1.12 and older)");
+					} else {
+						Skript.debug("Commands unchanged, not syncing them to clients");
+					}
+
+					// TODO events internalized
+					SkriptEventHandler.registerBukkitEvents();
+
+					return scriptInfo;
+				} catch (Exception e) {
+					throw Skript.exception(e);
+				} finally {
+					SkriptLogger.setNode(null);
 				}
-				
-				return scriptInfo;
 			});
 	}
 
@@ -619,7 +630,6 @@ public class ScriptLoader {
 					Skript.info("loaded " + scriptInfo.triggers + " trigger" + (scriptInfo.triggers == 1 ? "" : "s")+ " and " + scriptInfo.commands + " command" + (scriptInfo.commands == 1 ? "" : "s") + " from '" + config.getFileName() + "'");
 				
 				getParser().setCurrentScript(null);
-				structures.clear();
 			}
 		} catch (Exception e) {
 			//noinspection ThrowableNotThrown
@@ -660,8 +670,7 @@ public class ScriptLoader {
 		
 		return scriptInfo;
 	}
-	
-	
+
 	/*
 	 * Structure loading methods
 	 */

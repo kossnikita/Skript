@@ -22,23 +22,19 @@ import ch.njol.skript.ScriptLoader;
 import ch.njol.skript.Skript;
 import ch.njol.skript.SkriptConfig;
 import ch.njol.skript.SkriptEventHandler;
-import ch.njol.skript.config.Config;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.events.EvtClick;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.structures.Structure;
-import ch.njol.skript.util.Task;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.Callable;
 
 /**
  * A SkriptEvent is like a condition. It is called when any of the registered events occurs.
@@ -50,17 +46,17 @@ import java.util.concurrent.Callable;
  * @see Skript#registerEvent(String, Class, Class, String...)
  * @see Skript#registerEvent(String, Class, Class[], String...)
  */
+@SuppressWarnings("NotNullFieldNotInitialized")
 public abstract class SkriptEvent extends Structure implements SyntaxElement, Debuggable {
 
 	public static final Priority PRIORITY = new Priority(5);
 
+	private String expr;
+	private SectionNode node;
 	@Nullable
 	protected EventPriority eventPriority;
-
-	@SuppressWarnings("NotNullFieldNotInitialized")
-	private String expr;
-	@SuppressWarnings("NotNullFieldNotInitialized")
-	private SectionNode node;
+	private SkriptEventInfo<?> skriptEventInfo;
+	private List<TriggerItem> items;
 
 	@Override
 	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
@@ -115,23 +111,46 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 		SyntaxElementInfo<? extends Structure> syntaxElementInfo = getParser().getData(StructureData.class).getSyntaxElementInfo();
 		if (!(syntaxElementInfo instanceof SkriptEventInfo))
 			throw new IllegalStateException();
-		SkriptEventInfo<?> skriptEventInfo = (SkriptEventInfo<?>) syntaxElementInfo;
-
-		List<ParsedEventData> events = getParser().getData(EventData.class).events;
+		skriptEventInfo = (SkriptEventInfo<?>) syntaxElementInfo;
 
 		Class<? extends Event>[] eventClasses = getEventClasses();
-		if (eventClasses == null)
-			eventClasses = skriptEventInfo.events;
 
 		try {
 			getParser().setCurrentEvent(skriptEventInfo.getName().toLowerCase(Locale.ENGLISH), eventClasses);
 			getParser().setCurrentSkriptEvent(this);
 
-			events.add(new ParsedEventData(skriptEventInfo, this, expr, node, ScriptLoader.loadItems(node)));
+			items = ScriptLoader.loadItems(node);
 		} finally {
 			getParser().deleteCurrentEvent();
 			getParser().deleteCurrentSkriptEvent();
 		}
+	}
+
+	@Override
+	public void afterLoad() {
+		getParser().setCurrentEvent(skriptEventInfo.getName().toLowerCase(Locale.ENGLISH), getEventClasses());
+		getParser().setCurrentSkriptEvent(this);
+
+		File script = getParser().getCurrentScript() != null ? getParser().getCurrentScript().getFile() : null;
+
+		Trigger trigger;
+		try {
+			trigger = new Trigger(script, expr, this, items);
+			trigger.setLineNumber(node.getLine()); // Set line number for debugging
+			trigger.setDebugLabel(script + ": line " + node.getLine());
+		} finally {
+			getParser().deleteCurrentEvent();
+		}
+
+		if (this instanceof SelfRegisteringSkriptEvent) {
+			((SelfRegisteringSkriptEvent) this).register(trigger);
+			SkriptEventHandler.addSelfRegisteringTrigger(trigger);
+		} else {
+			SkriptEventHandler.addTrigger(getEventClasses(), trigger);
+		}
+
+		getParser().deleteCurrentEvent();
+		getParser().deleteCurrentSkriptEvent();
 	}
 
 	@Override
@@ -161,11 +180,10 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	}
 
 	/**
-	 * @return the Event classes to use in {@link ch.njol.skript.lang.parser.ParserInstance},
-	 * or {@code null} if the Event classes this SkriptEvent was registered with should be used.
+	 * @return the Event classes to use in {@link ch.njol.skript.lang.parser.ParserInstance}.
 	 */
-	public Class<? extends Event> @Nullable[] getEventClasses() {
-		return null;
+	public Class<? extends Event>[] getEventClasses() {
+		return skriptEventInfo.events;
 	}
 
 	/**
@@ -174,82 +192,6 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	 */
 	public EventPriority getEventPriority() {
 		return eventPriority != null ? eventPriority : SkriptConfig.defaultEventPriority.value();
-	}
-
-	static {
-		ParserInstance.registerData(EventData.class, EventData::new);
-	}
-
-	public static class EventData extends ParserInstance.Data {
-		public final List<ParsedEventData> events = new ArrayList<>();
-
-		public EventData(ParserInstance parserInstance) {
-			super(parserInstance);
-		}
-
-		@Override
-		public void onCurrentScriptChange(@Nullable Config oldConfig, @Nullable Config newConfig) {
-			if (events.isEmpty())
-				return;
-
-			if (oldConfig == null)
-				throw new IllegalStateException();
-
-			Callable<Void> callable = () -> {
-				for (ParsedEventData event : events) {
-					getParser().setCurrentEvent(event.info.getName().toLowerCase(Locale.ENGLISH), event.info.events);
-					getParser().setCurrentSkriptEvent(event.skriptEvent);
-
-					Trigger trigger;
-					try {
-						trigger = new Trigger(oldConfig.getFile(), event.event, event.skriptEvent, event.items);
-						trigger.setLineNumber(event.node.getLine()); // Set line number for debugging
-						trigger.setDebugLabel(oldConfig.getFileName() + ": line " + event.node.getLine());
-					} finally {
-						getParser().deleteCurrentEvent();
-					}
-
-					if (event.skriptEvent instanceof SelfRegisteringSkriptEvent) {
-						((SelfRegisteringSkriptEvent) event.skriptEvent).register(trigger);
-						SkriptEventHandler.addSelfRegisteringTrigger(trigger);
-					} else {
-						SkriptEventHandler.addTrigger(event.info.events, trigger);
-					}
-
-					getParser().deleteCurrentEvent();
-					getParser().deleteCurrentSkriptEvent();
-				}
-				events.clear();
-				return null;
-			};
-
-			if (ScriptLoader.isAsync()) { // Need to delegate to main thread
-				Task.callSync(callable);
-			} else { // We are in main thread, execute immediately
-				try {
-					callable.call();
-				} catch (Exception e) {
-					//noinspection ThrowableNotThrown
-					Skript.exception(e);
-				}
-			}
-		}
-	}
-
-	private static class ParsedEventData {
-		public final SkriptEventInfo<?> info;
-		public final SkriptEvent skriptEvent;
-		public final String event;
-		public final SectionNode node;
-		public final List<TriggerItem> items;
-
-		public ParsedEventData(SkriptEventInfo<?> info, SkriptEvent skriptEvent, String event, SectionNode node, List<TriggerItem> items) {
-			this.info = info;
-			this.skriptEvent = skriptEvent;
-			this.event = event;
-			this.node = node;
-			this.items = items;
-		}
 	}
 
 	/**

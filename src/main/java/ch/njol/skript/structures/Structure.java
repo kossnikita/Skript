@@ -19,6 +19,7 @@
 package ch.njol.skript.structures;
 
 import ch.njol.skript.Skript;
+import ch.njol.skript.config.Config;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.lang.Debuggable;
 import ch.njol.skript.lang.Expression;
@@ -40,8 +41,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 // TODO javadocs (everywhere)
+// TODO move to ch.njol.skript.lang
 public abstract class Structure implements SyntaxElement, Debuggable {
 
 	// TODO priorities
@@ -62,8 +66,13 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 		}
 	}
 
+	@SuppressWarnings("NotNullFieldNotInitialized")
+	private Config script;
+
 	@Override
 	public final boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+		script = Objects.requireNonNull(getParser().getCurrentScript());
+
 		StructureData structureData = getParser().getData(StructureData.class);
 
 		Literal<?>[] literals = Arrays.copyOf(exprs, exprs.length, Literal[].class);
@@ -85,12 +94,28 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 
 	public abstract void load();
 
+	public void afterLoad() {
+
+	}
+
 	/**
 	 * Called when this structure is unloaded, similar to {@link SelfRegisteringSkriptEvent#unregister(Trigger)}.
 	 */
 	public abstract void unload();
 
 	public abstract Priority getPriority();
+
+	public void runWithScript(Consumer<Structure> consumer) {
+		try {
+			getParser().setCurrentScript(script);
+			consumer.accept(this);
+		} catch (Exception e) {
+			//noinspection ThrowableNotThrown
+			Skript.exception(e);
+		} finally {
+			getParser().setCurrentScript(null);
+		}
+	}
 
 	@Override
 	public String toString() {

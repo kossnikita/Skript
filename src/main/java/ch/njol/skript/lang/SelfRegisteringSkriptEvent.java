@@ -64,7 +64,6 @@ public abstract class SelfRegisteringSkriptEvent extends SkriptEvent {
 	 * @param config Script that is being parsed
 	 */
 	public void afterParse(Config config) {
-		// DO NOTHING
 	}
 
 	@Override
