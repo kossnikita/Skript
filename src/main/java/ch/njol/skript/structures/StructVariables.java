@@ -123,11 +123,6 @@ public class StructVariables extends Structure {
 	}
 
 	@Override
-	public void preload() {
-
-	}
-
-	@Override
 	public void load() {
 		for (NonNullPair<String, Object> pair : variables) {
 			String name = pair.getKey();

@@ -50,11 +50,6 @@ public class StructCommand extends Structure {
 	}
 
 	@Override
-	public void preload() {
-
-	}
-
-	@Override
 	public void load() {
 		ScriptInfo scriptInfo = getParser().getScriptInfo();
 

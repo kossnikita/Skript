@@ -95,11 +95,6 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	public abstract boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult);
 
 	@Override
-	public void preload() {
-
-	}
-
-	@Override
 	public void load() {
 		if (!shouldLoadEvent())
 			return;

@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+// TODO STRUCTURE make sure options work everywhere (maybe have some structure validation in preload instead of init)
 // TODO STRUCTURE javadocs (everywhere)
 // TODO STRUCTURE add Structures to docs
 public abstract class Structure implements SyntaxElement, Debuggable {
@@ -81,7 +82,9 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 								 ParseResult parseResult,
 								 SectionNode node);
 
-	public abstract void preload();
+	public void preload() {
+
+	}
 
 	public abstract void load();
 
