@@ -32,10 +32,13 @@ import ch.njol.skript.log.SkriptLogger;
 import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.variables.Variables;
+import ch.njol.util.NonNullPair;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class StructVariables extends Structure {
@@ -46,9 +49,10 @@ public class StructVariables extends Structure {
 		Skript.registerStructure(StructVariables.class, "variables");
 	}
 
+	private final List<NonNullPair<String, Object>> variables = new ArrayList<>();
+
 	@Override
 	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult, SectionNode node) {
-		// TODO STRUCTURE split this implementation over the right methods below
 		// TODO allow to make these override existing variables
 		node.convertToEntries(0, "=");
 		for (Node n : node) {
@@ -59,7 +63,7 @@ public class StructVariables extends Structure {
 
 			String name = n.getKey().toLowerCase(Locale.ENGLISH);
 			if (name.startsWith("{") && name.endsWith("}"))
-				name = "" + name.substring(1, name.length() - 1);
+				name = name.substring(1, name.length() - 1);
 
 			String var = name;
 
@@ -82,9 +86,6 @@ public class StructVariables extends Structure {
 				Skript.error("Invalid use of percent signs in variable name");
 				continue;
 			}
-
-			if (Variables.getVariable(name, null, false) != null)
-				continue;
 
 			Object o;
 			ParseLogHandler log = SkriptLogger.startParseLogHandler();
@@ -116,7 +117,7 @@ public class StructVariables extends Structure {
 				}
 			}
 
-			Variables.setVariable(name, o, null, false);
+			variables.add(new NonNullPair<>(name, o));
 		}
 		return true;
 	}
@@ -128,7 +129,15 @@ public class StructVariables extends Structure {
 
 	@Override
 	public void load() {
+		for (NonNullPair<String, Object> pair : variables) {
+			String name = pair.getKey();
+			Object o = pair.getValue();
 
+			if (Variables.getVariable(name, null, false) != null)
+				continue;
+
+			Variables.setVariable(name, o, null, false);
+		}
 	}
 
 	@Override
