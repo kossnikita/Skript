@@ -54,6 +54,7 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	private SectionNode node;
 	@Nullable
 	protected EventPriority eventPriority;
+	@Nullable
 	private SkriptEventInfo<?> skriptEventInfo;
 	private List<TriggerItem> items;
 
@@ -122,6 +123,9 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 
 	@Override
 	public void afterLoad() {
+		if (skriptEventInfo == null) // shouldLoadEvent returned false
+			return;
+
 		getParser().setCurrentEvent(skriptEventInfo.getName().toLowerCase(Locale.ENGLISH), getEventClasses());
 		getParser().setCurrentSkriptEvent(this);
 
@@ -177,6 +181,7 @@ public abstract class SkriptEvent extends Structure implements SyntaxElement, De
 	 * @return the Event classes to use in {@link ch.njol.skript.lang.parser.ParserInstance}.
 	 */
 	public Class<? extends Event>[] getEventClasses() {
+		assert skriptEventInfo != null;
 		return skriptEventInfo.events;
 	}
 
