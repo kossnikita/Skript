@@ -247,8 +247,8 @@ public abstract class SkriptEventHandler {
 		for (Trigger t : selfRegisteredTriggers)
 			((SelfRegisteringSkriptEvent) t.getEvent()).unregisterAll();
 		selfRegisteredTriggers.clear();
-		for (File key : structures.keySet())
-			for (Structure structure : structures.get(key))
+		for (List<Structure> list : structures.values())
+			for (Structure structure : list)
 				structure.unload();
 		structures.clear();
 	}
