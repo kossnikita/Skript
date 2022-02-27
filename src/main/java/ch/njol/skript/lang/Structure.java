@@ -68,9 +68,8 @@ public abstract class Structure implements SyntaxElement, Debuggable {
 		StructureData structureData = getParser().getData(StructureData.class);
 
 		Literal<?>[] literals = Arrays.copyOf(exprs, exprs.length, Literal[].class);
-		ParseResult newParseResult = new ParseResult(parseResult.expr, literals);
 
-		return init(literals, matchedPattern, newParseResult, structureData.sectionNode);
+		return init(literals, matchedPattern, parseResult, structureData.sectionNode);
 	}
 
 	/**
