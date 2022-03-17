@@ -43,7 +43,7 @@ import org.eclipse.jdt.annotation.Nullable;
 public class EffPathfind extends Effect {
 
 	static {
-		if (Skript.methodExists(Mob.class, "getPathfinder"))
+		if (Skript.classExists("org.bukkit.entity.Mob") && Skript.methodExists(Mob.class, "getPathfinder"))
 			Skript.registerEffect(EffPathfind.class,
 				"make %livingentities% (pathfind|move) to[wards] %livingentity/location% [at speed %-number%]",
 				"make %livingentities% stop (pathfinding|moving)");
