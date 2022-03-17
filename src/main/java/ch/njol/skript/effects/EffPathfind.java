@@ -27,18 +27,15 @@ import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.util.Kleenean;
-import com.google.common.base.MoreObjects;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.event.Event;
 import org.eclipse.jdt.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
-@Name("Break Block")
-@Description({"Breaks the block and spawns items as if a player had mined it",
-	"\nYou can add a tool, which will spawn items based on how that tool would break the block ",
-	"(ie: When using a hand to break stone, it drops nothing, whereas with a pickaxe it drops cobblestone)"})
+@Name("Pathfind")
+@Description({"Make an entity pathfind towards a location or another entity. Not all entities can pathfind." +
+	"If the pathfinding target is another entity, the entities may or may not continuously follow the target."})
 @Examples({"make all creepers pathfind towards player",
 	"make all cows stop pathfinding",
 	"make event-entity pathfind towards player"})
