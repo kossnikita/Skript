@@ -39,7 +39,9 @@ import org.jetbrains.annotations.NotNull;
 @Description({"Breaks the block and spawns items as if a player had mined it",
 	"\nYou can add a tool, which will spawn items based on how that tool would break the block ",
 	"(ie: When using a hand to break stone, it drops nothing, whereas with a pickaxe it drops cobblestone)"})
-@Examples({"make all creepers pathfind towards player"})
+@Examples({"make all creepers pathfind towards player",
+	"make all cows stop pathfinding",
+	"make event-entity pathfind towards player"})
 @Since("INSERT VERSION")
 public class EffPathfind extends Effect {
 
